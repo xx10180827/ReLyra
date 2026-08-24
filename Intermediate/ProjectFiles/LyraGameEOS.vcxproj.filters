@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="..\..\Lyra.uproject" />
+    <Filter Include="Source">
+      <UniqueIdentifier>{F31BBDD1-B3E8-3BCC-9652-680E16935819}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Source\LyraGameEOS.Target.cs">
+      <Filter>Source</Filter>
+    </None>
+    <None Include="..\..\README.md" />
+    <Filter Include="Platforms">
+      <UniqueIdentifier>{ED49A36C-4FD5-37E5-A2AC-E11BEF4F21CF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Platforms\Android">
+      <UniqueIdentifier>{1E704F10-42DC-311D-8B57-64A1F2C5684E}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Platforms\Android\readme.txt">
+      <Filter>Platforms\Android</Filter>
+    </None>
+    <Filter Include="Platforms\IOS">
+      <UniqueIdentifier>{8BDFD5E3-FDCF-3305-A3DA-0FC0494A87F4}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Platforms\IOS\readme.txt">
+      <Filter>Platforms\IOS</Filter>
+    </None>
+    <Filter Include="Platforms\Linux">
+      <UniqueIdentifier>{90A6B23F-5155-3212-A4F2-DF25EB341ACB}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Platforms\Linux\readme.txt">
+      <Filter>Platforms\Linux</Filter>
+    </None>
+    <Filter Include="Platforms\Mac">
+      <UniqueIdentifier>{798C8104-FC45-3C34-BB54-435968E47C65}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Platforms\Mac\readme.txt">
+      <Filter>Platforms\Mac</Filter>
+    </None>
+    <Filter Include="Platforms\Windows">
+      <UniqueIdentifier>{18AE318C-ED72-32BD-AE1E-46F57252EBE5}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Platforms\Windows\readme.txt">
+      <Filter>Platforms\Windows</Filter>
+    </None>
+  </ItemGroup>
+</Project>

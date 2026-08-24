@@ -1,0 +1,29 @@
+{
+	"SourceFiles": [
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraEditor\\LyraEditor.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraGame\\LyraGame.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\AsyncMixin\\Source\\AsyncMixin.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\CommonGame\\Source\\CommonGame.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\CommonLoadingScreen\\Source\\CommonLoadingScreen\\CommonLoadingScreen.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\CommonLoadingScreen\\Source\\CommonStartupLoadingScreen\\CommonStartupLoadingScreen.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\CommonUser\\Source\\CommonUser\\CommonUser.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameFeatures\\ShooterCore\\Source\\ShooterCoreRuntime\\ShooterCoreRuntime.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameFeatures\\ShooterTests\\Source\\ShooterTestsRuntime\\ShooterTestsRuntime.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameFeatures\\TopDownArena\\Source\\TopDownArenaRuntime\\TopDownArenaRuntime.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameplayMessageRouter\\Source\\GameplayMessageNodes\\GameplayMessageNodes.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameplayMessageRouter\\Source\\GameplayMessageRuntime\\GameplayMessageRuntime.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameSettings\\Source\\GameSettings.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\GameSubtitles\\Source\\GameSubtitles.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\LyraExtTool\\Source\\LyraExtTool\\LyraExtTool.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\ModularGameplayActors\\Source\\ModularGameplayActors\\ModularGameplayActors.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\PocketWorlds\\Source\\PocketWorlds.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Plugins\\UIExtension\\Source\\UIExtension.Build.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraClient.Target.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraEditor.Target.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraGame.Target.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraGameEOS.Target.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraServer.Target.cs",
+		"D:\\UE5_My_Project\\LyraStarterGame\\Source\\LyraServerEOS.Target.cs"
+	],
+	"EngineVersion": "5.4.4"
+}

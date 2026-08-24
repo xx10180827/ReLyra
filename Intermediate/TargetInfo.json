@@ -1,0 +1,34 @@
+{
+	"Targets": [
+		{
+			"Name": "LyraClient",
+			"Path": "..\\Source\\LyraClient.Target.cs",
+			"Type": "Client"
+		},
+		{
+			"Name": "LyraEditor",
+			"Path": "..\\Source\\LyraEditor.Target.cs",
+			"Type": "Editor"
+		},
+		{
+			"Name": "LyraGame",
+			"Path": "..\\Source\\LyraGame.Target.cs",
+			"Type": "Game"
+		},
+		{
+			"Name": "LyraGameEOS",
+			"Path": "..\\Source\\LyraGameEOS.Target.cs",
+			"Type": "Game"
+		},
+		{
+			"Name": "LyraServer",
+			"Path": "..\\Source\\LyraServer.Target.cs",
+			"Type": "Server"
+		},
+		{
+			"Name": "LyraServerEOS",
+			"Path": "..\\Source\\LyraServerEOS.Target.cs",
+			"Type": "Server"
+		}
+	]
+}

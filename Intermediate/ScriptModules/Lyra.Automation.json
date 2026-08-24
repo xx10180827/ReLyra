@@ -1,0 +1,176 @@
+{
+  "Version": 5,
+  "ProjectPath": "..\\..\\Build\\Scripts\\Lyra.Automation.csproj",
+  "TargetBuildTime": "2024-04-18T15:28:21.6951988+00:00",
+  "TargetPath": "..\\..\\Binaries\\DotNET\\AutomationTool\\AutomationScripts\\Lyra.Automation.dll",
+  "ProjectReferencesAndTimes": [
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\AutomationTool\\AutomationUtils\\AutomationUtils.Automation.csproj",
+      "TargetBuildTime": "2024-04-18T15:28:13.012017+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\AutomationTool\\CrowdinLocalization\\CrowdinLocalization.Automation.csproj",
+      "TargetBuildTime": "2024-04-18T15:28:14.8297492+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\AutomationTool\\Localization\\Localization.Automation.csproj",
+      "TargetBuildTime": "2024-04-18T15:28:13.5016759+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\AutomationTool\\OneSkyLocalization\\OneSkyLocalization.Automation.csproj",
+      "TargetBuildTime": "2024-04-18T15:28:16.2672376+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\AutomationTool\\XLocLocalization\\XLocLocalization.Automation.csproj",
+      "TargetBuildTime": "2024-04-18T15:28:18.1348279+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\Shared\\EpicGames.Core\\EpicGames.Core.csproj",
+      "TargetBuildTime": "2024-04-18T15:27:47.0339989+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\AutomationTool\\Gauntlet\\Gauntlet.Automation.csproj",
+      "TargetBuildTime": "2024-04-18T15:28:19.3050311+00:00"
+    },
+    {
+      "ProjectPath": "D:\\build\\\u002B\u002BUE5\\Sync\\Engine\\Source\\Programs\\UnrealBuildTool\\UnrealBuildTool.csproj",
+      "TargetBuildTime": "2024-04-18T15:27:52.4795059+00:00"
+    }
+  ],
+  "Dependencies": [
+    "Lyra.Automation.csproj",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\Sdk\\Sdk.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Current\\Microsoft.Common.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\NuGet.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.DefaultItems.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.NETCoreSdk.BundledVersions.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.ImportWorkloads.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.SupportedTargetFrameworks.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.SupportedPlatforms.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.WindowsSdkSupportedTargetPlatforms.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.CSharp.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.ILLink.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.ILLink.Tasks\\Sdk\\Sdk.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.ILLink.Tasks\\build\\Microsoft.NET.ILLink.Tasks.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Compatibility.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.PackTool.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.PackProjectTool.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk.WindowsDesktop\\targets\\Microsoft.NET.Sdk.WindowsDesktop.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk.WindowsDesktop\\targets\\Microsoft.NET.Sdk.WindowsDesktop.WindowsForms.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk.WindowsDesktop\\targets\\System.Windows.Forms.Analyzers.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk.WindowsDesktop\\targets\\Microsoft.NET.Sdk.WindowsDesktop.WPF.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Windows.props",
+    "..\\..\\..\\..\\..\\Engine\\Source\\Programs\\Shared\\UnrealEngine.csproj.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\Sdk\\Sdk.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.BeforeCommon.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.DefaultAssemblyInfo.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.DefaultOutputPaths.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.ImportPublishProfile.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.TargetFrameworkInference.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.ImportWorkloads.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.sdk.android\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.sdk.ios\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.sdk.maccatalyst\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.sdk.macos\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.sdk.maui\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.sdk.tvos\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.workload.emscripten\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk-manifests\\6.0.300\\microsoft.net.workload.mono.toolchain\\WorkloadManifest.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.RuntimeIdentifierInference.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.EolTargetFrameworks.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.NuGetOfflineCache.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.CSharp.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.Managed.Before.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.CSharp.CurrentVersion.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Roslyn\\Microsoft.CSharp.Core.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Roslyn\\Microsoft.Managed.Core.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Roslyn\\Microsoft.Managed.Core.CurrentVersions.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.Common.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.Common.CurrentVersion.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.NET.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\NuGet.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Current\\Microsoft.Common.targets\\ImportAfter\\Microsoft.NET.Build.Extensions.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft\\Microsoft.NET.Build.Extensions\\Microsoft.NET.Build.Extensions.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Current\\Microsoft.Common.targets\\ImportAfter\\Microsoft.TestPlatform.ImportAfter.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.TestPlatform.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.Managed.After.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.Common.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.PackageDependencyResolution.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.DefaultItems.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.DefaultItems.Shared.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.FrameworkReferenceResolution.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.Shared.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.DisableStandardFrameworkResolution.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.DesignerSupport.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.GenerateAssemblyInfo.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.GenerateGlobalUsings.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.GenerateSupportedRuntime.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.ComposeStore.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.CrossGen.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.ObsoleteReferences.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Microsoft.NETCoreSdk.BundledCliTools.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Publish.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.PackTool.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.PackProjectTool.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.PreserveCompilationContext.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.ConflictResolution.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.DefaultPackageConflictOverrides.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.CSharp.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.ILLink.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Sdk.Analyzers.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\analyzers\\build\\Microsoft.CodeAnalysis.NetAnalyzers.props",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\analyzers\\build\\Microsoft.CodeAnalysis.NetAnalyzers.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Compatibility.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\Microsoft.NET.Sdk\\targets\\Microsoft.NET.Compatibility.Common.targets",
+    "..\\..\\..\\..\\..\\Engine\\Binaries\\ThirdParty\\DotNet\\6.0.302\\windows\\sdk\\6.0.302\\Sdks\\NuGet.Build.Tasks.Pack\\build\\NuGet.Build.Tasks.Pack.targets"
+  ],
+  "GlobbedDependencies": [
+    "Automation\\Localization\\CrowdinLocalizationProvider_Sample.cs",
+    "Automation\\Localization\\XLocLocalizationProvider_Sample.cs",
+    "Automation\\LyraTest.BootTest.cs",
+    "Automation\\LyraTest.ContentValidation.cs",
+    "Automation\\LyraTest.TestConfig.cs",
+    "Automation\\LyraTest.UpdateAuditCollections.cs",
+    "Deployment\\LyraDeployment.EpicGameStore.cs"
+  ],
+  "Globs": [
+    {
+      "ItemType": "EmbeddedResource",
+      "Include": [
+        "**\\*.resx"
+      ],
+      "Exclude": [
+        "..\\..\\Binaries\\DotNET\\AutomationTool\\AutomationScripts\\**",
+        "**\\.*\\**",
+        "**\\*.*proj",
+        "**\\*.sln",
+        "**\\*.user",
+        "**\\*.vssscc",
+        "bin\\**",
+        "obj\\**",
+        "obj\\Development\\**"
+      ],
+      "Remove": []
+    },
+    {
+      "ItemType": "Compile",
+      "Include": [
+        "**\\*.cs"
+      ],
+      "Exclude": [
+        "..\\..\\Binaries\\DotNET\\AutomationTool\\AutomationScripts\\**",
+        "**\\.*\\**",
+        "**\\*.*proj",
+        "**\\*.sln",
+        "**\\*.user",
+        "**\\*.vssscc",
+        "bin\\**",
+        "obj\\**",
+        "obj\\Development\\**"
+      ],
+      "Remove": []
+    }
+  ]
+}
