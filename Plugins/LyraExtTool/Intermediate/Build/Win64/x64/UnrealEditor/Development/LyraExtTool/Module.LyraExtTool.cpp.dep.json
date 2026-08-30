@@ -1,0 +1,20 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\lyraexttool\\module.lyraexttool.cpp",
+        "ProvidedModule": "",
+        "PCH": "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\lyraeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\lyraexttool\\definitions.lyraexttool.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraexttool\\uht\\lyraexttool.init.gen.cpp",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\source\\lyraexttool\\private\\bpfunctionlibrary.cpp",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\source\\lyraexttool\\public\\bpfunctionlibrary.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraexttool\\uht\\bpfunctionlibrary.generated.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraexttool\\uht\\bpfunctionlibrary.gen.cpp",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\source\\lyraexttool\\private\\lyraexttool.cpp",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\lyraexttool\\source\\lyraexttool\\public\\lyraexttool.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

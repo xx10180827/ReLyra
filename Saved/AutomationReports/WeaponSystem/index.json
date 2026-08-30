@@ -1,0 +1,57 @@
+﻿{
+	"devices": [
+		{
+			"deviceName": "小小",
+			"instance": "79265DB046F9DC6F716222B5B9DFB050",
+			"instanceName": "小小-6324",
+			"platform": "WindowsEditor",
+			"oSVersion": "Windows 11 (25H2) [10.0.26200.9168] ",
+			"model": "Default",
+			"gPU": "NVIDIA GeForce RTX 4060 Laptop GPU",
+			"cPUModel": "Intel(R) Core(TM) i7-14650HX",
+			"rAMInGB": 16,
+			"renderMode": "SM5",
+			"rHI": "",
+			"appInstanceLog": ""
+		}
+	],
+	"reportCreatedOn": "2026.08.30-14.23.40",
+	"succeeded": 2,
+	"succeededWithWarnings": 0,
+	"failed": 0,
+	"notRun": 0,
+	"inProcess": 0,
+	"totalDuration": 0.023923899978399277,
+	"comparisonExported": false,
+	"comparisonExportDirectory": "",
+	"tests": [
+		{
+			"testDisplayName": "Ammo",
+			"fullTestPath": "Lyra.Weapons.Ranged.Ammo",
+			"state": "Success",
+			"deviceInstance": [
+				"79265DB046F9DC6F716222B5B9DFB050"
+			],
+			"duration": 0.0067175999283790588,
+			"dateTime": "0001.01.01-00.00.00",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		},
+		{
+			"testDisplayName": "Defaults",
+			"fullTestPath": "Lyra.Weapons.Shotgun.Defaults",
+			"state": "Success",
+			"deviceInstance": [
+				"79265DB046F9DC6F716222B5B9DFB050"
+			],
+			"duration": 0.017206300050020218,
+			"dateTime": "0001.01.01-00.00.00",
+			"entries": [],
+			"warnings": 0,
+			"errors": 0,
+			"artifacts": []
+		}
+	]
+}

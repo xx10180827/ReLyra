@@ -14,7 +14,7 @@ class UAnimMontage;
  *
  * An ability granted by a ranged weapon that reloads its magazine.
  * Plays a reload montage and, after the weapon's ReloadTime has elapsed,
- * refills the weapon's CurrentAmmo to MaxAmmo.
+ * transfers finite reserve ammo into the magazine after ReloadTime elapses.
  */
 UCLASS()
 class ULyraGameplayAbility_Reload : public ULyraGameplayAbility_FromEquipment
@@ -31,7 +31,9 @@ public:
 protected:
 
 	//~UGameplayAbility interface
+	virtual bool CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr, OUT FGameplayTagContainer* OptionalRelevantTags = nullptr) const override;
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
+	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~End of UGameplayAbility interface
 
 	// Montage to play while reloading. Its duration should roughly match the weapon's ReloadTime.
@@ -39,18 +41,16 @@ protected:
 	TObjectPtr<UAnimMontage> ReloadMontage = nullptr;
 
 private:
-
-	// Called when the reload montage finishes (or blends out) successfully to refill ammo and end the ability.
-	UFUNCTION()
-	void OnReloadSucceeded();
-
-	// Called when the reload montage is interrupted or cancelled; ends the ability without refilling.
-	UFUNCTION()
-	void OnReloadCanceled();
-
-	// Called when the fallback WaitDelay task completes (used when no montage is assigned).
+	// Called when the reload delay has elapsed.
 	UFUNCTION()
 	void OnReloadDelayFinished();
 
-	void FinishReload(bool bSuccess);
+	// Transfers reserve ammo into the magazine and ends the ability.
+	void FinishReload();
+
+	// Timer used to wait for the weapon's ReloadTime before refilling ammo (used regardless of montage).
+	FTimerHandle ReloadTimerHandle;
+
+	// Guards against duplicate timer completion.
+	bool bReloadComplete = false;
 };

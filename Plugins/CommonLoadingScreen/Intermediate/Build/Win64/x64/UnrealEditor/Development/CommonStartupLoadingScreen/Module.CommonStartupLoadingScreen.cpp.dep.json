@@ -1,0 +1,34 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\commonstartuploadingscreen\\module.commonstartuploadingscreen.cpp",
+        "ProvidedModule": "",
+        "PCH": "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\lyraeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\commonstartuploadingscreen\\definitions.commonstartuploadingscreen.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\source\\commonstartuploadingscreen\\private\\commonpreloadscreen.cpp",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\source\\commonstartuploadingscreen\\private\\commonpreloadscreen.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\preloadscreen\\public\\preloadscreenbase.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\preloadscreen\\public\\preloadscreen.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analyticset\\public\\ianalyticsprovideret.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analyticset\\public\\analyticset.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analytics\\public\\analyticsproviderconfigurationdelegate.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analytics\\public\\interfaces\\ianalyticsprovidermodule.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analytics\\public\\analyticseventattribute.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analytics\\public\\analyticsconversion.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\analytics\\analytics\\public\\interfaces\\ianalyticsprovider.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\source\\commonstartuploadingscreen\\private\\scommonpreloadingscreenwidget.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\source\\commonstartuploadingscreen\\private\\commonstartuploadingscreen.cpp",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\preloadscreen\\public\\preloadscreenmanager.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\slate\\public\\widgets\\svirtualwindow.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\rendercore\\public\\tickableobjectrenderthread.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\preloadscreen\\public\\preloadslatethreading.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\applicationcore\\public\\hal\\platformapplicationmisc.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\applicationcore\\public\\windows\\windowsplatformapplicationmisc.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\applicationcore\\public\\genericplatform\\genericplatformapplicationmisc.h",
+            "d:\\ue5_my_project\\lyrastartergame\\plugins\\commonloadingscreen\\source\\commonstartuploadingscreen\\private\\scommonpreloadingscreenwidget.cpp"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

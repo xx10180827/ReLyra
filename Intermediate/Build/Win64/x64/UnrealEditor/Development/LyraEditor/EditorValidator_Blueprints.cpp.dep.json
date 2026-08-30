@@ -1,0 +1,29 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\validation\\editorvalidator_blueprints.cpp",
+        "ProvidedModule": "",
+        "PCH": "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\lyraeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\lyraeditor\\definitions.lyraeditor.h",
+            "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\validation\\editorvalidator_blueprints.h",
+            "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\validation\\editorvalidator.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\plugins\\editor\\datavalidation\\source\\datavalidation\\public\\editorvalidatorbase.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\plugins\\editor\\datavalidation\\intermediate\\build\\win64\\unrealeditor\\inc\\datavalidation\\uht\\editorvalidatorbase.generated.h",
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraeditor\\uht\\editorvalidator.generated.h",
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraeditor\\uht\\editorvalidator_blueprints.generated.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\assetregistry\\public\\assetregistry\\assetregistrymodule.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\assetregistry\\public\\assetregistry\\iassetregistry.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\coreuobject\\public\\misc\\assetregistryinterface.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\assetregistry\\uht\\iassetregistry.generated.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\editor\\unrealed\\public\\kismet2\\blueprinteditorutils.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\editor\\classviewer\\public\\classviewermodule.h",
+            "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\lyraeditor.h",
+            "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\validation\\editorvalidator_load.h",
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraeditor\\uht\\editorvalidator_load.generated.h",
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\unrealeditor\\inc\\lyraeditor\\uht\\editorvalidator_blueprints.gen.cpp"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

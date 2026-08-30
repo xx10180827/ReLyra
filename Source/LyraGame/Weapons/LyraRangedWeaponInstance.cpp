@@ -3,6 +3,7 @@
 #include "LyraRangedWeaponInstance.h"
 #include "NativeGameplayTags.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/LyraCameraComponent.h"
 #include "Physics/PhysicalMaterialWithTags.h"
@@ -64,8 +65,10 @@ void ULyraRangedWeaponInstance::OnEquipped()
 	JumpFallMultiplier = 1.0f;
 	CrouchingMultiplier = 1.0f;
 
-	// Start with a full magazine
-	CurrentAmmo = MaxAmmo;
+	// Start with a full magazine and the configured finite reserve.
+	ResetAmmoState();
+	PendingRecoilPitch = 0.0f;
+	PendingRecoilYaw = 0.0f;
 }
 
 void ULyraRangedWeaponInstance::ConsumeAmmo(int32 Amount)
@@ -76,13 +79,28 @@ void ULyraRangedWeaponInstance::ConsumeAmmo(int32 Amount)
 	}
 }
 
-void ULyraRangedWeaponInstance::RefillAmmo()
+int32 ULyraRangedWeaponInstance::ReloadAmmo()
 {
-	CurrentAmmo = MaxAmmo;
+	const int32 MissingAmmo = FMath::Max(0, MaxAmmo - CurrentAmmo);
+	const int32 LoadedAmmo = FMath::Min(MissingAmmo, CurrentReserveAmmo);
+
+	CurrentAmmo += LoadedAmmo;
+	CurrentReserveAmmo -= LoadedAmmo;
+
+	return LoadedAmmo;
+}
+
+void ULyraRangedWeaponInstance::ResetAmmoState()
+{
+	CurrentAmmo = FMath::Max(0, MaxAmmo);
+	CurrentReserveAmmo = FMath::Max(0, MaxReserveAmmo);
 }
 
 void ULyraRangedWeaponInstance::OnUnequipped()
 {
+	PendingRecoilPitch = 0.0f;
+	PendingRecoilYaw = 0.0f;
+
 	Super::OnUnequipped();
 }
 
@@ -90,11 +108,14 @@ void ULyraRangedWeaponInstance::Tick(float DeltaSeconds)
 {
 	APawn* Pawn = GetPawn();
 	check(Pawn != nullptr);
-	
+
 	const bool bMinSpread = UpdateSpread(DeltaSeconds);
 	const bool bMinMultipliers = UpdateMultipliers(DeltaSeconds);
 
 	bHasFirstShotAccuracy = bAllowFirstShotAccuracy && bMinMultipliers && bMinSpread;
+
+	// Smoothly recover any pending recoil on the locally-controlled player's view.
+	UpdateRecoilRecovery(DeltaSeconds);
 
 #if WITH_EDITOR
 	UpdateDebugVisualization();
@@ -230,5 +251,79 @@ bool ULyraRangedWeaponInstance::UpdateMultipliers(float DeltaSeconds)
 
 	// need to handle these spread multipliers indicating we are not at min spread
 	return bStandingStillMultiplierAtMin && bCrouchingMultiplierAtTarget && bJumpFallMultiplerIs1 && bAimingMultiplierAtTarget;
+}
+
+void ULyraRangedWeaponInstance::ApplyRecoil()
+{
+	APawn* Pawn = GetPawn();
+	if (Pawn == nullptr)
+	{
+		return;
+	}
+
+	// Recoil is a local-view-only effect: it only applies to locally-controlled players with a real PlayerController.
+	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+	if (PC == nullptr || !PC->IsLocalController())
+	{
+		return;
+	}
+
+	const float PitchDelta = FMath::FRandRange(RecoilPitchMin, RecoilPitchMax);
+	const float YawDelta = FMath::FRandRange(RecoilYawMin, RecoilYawMax);
+
+	// UE5 中 AddPitchInput 正值对应视角向下俯视、负值对应向上仰视。
+	// 后坐力预期是让枪口向上抬,因此这里传入 -PitchDelta。
+	// 摄像机管理器里的 PitchRate/YawRate 限制会缩放每帧实际位移速度。
+	PC->AddPitchInput(-PitchDelta);
+	PC->AddYawInput(YawDelta);
+
+	// 累计待回弹的量(始终为正值,代表视角被向上推开的幅度),
+	// 供 UpdateRecoilRecovery 在后续若干帧里反向施加 +PitchRecover 把视角拉回原位。
+	PendingRecoilPitch += PitchDelta;
+	PendingRecoilYaw += YawDelta;
+}
+
+void ULyraRangedWeaponInstance::UpdateRecoilRecovery(float DeltaSeconds)
+{
+	if (!HasPendingRecoil() || (DeltaSeconds <= 0.0f))
+	{
+		return;
+	}
+
+	APawn* Pawn = GetPawn();
+	if (Pawn == nullptr)
+	{
+		return;
+	}
+
+	APlayerController* PC = Cast<APlayerController>(Pawn->GetController());
+	if (PC == nullptr || !PC->IsLocalController())
+	{
+		// Non-local controller (e.g. simulated proxy or AI) - just decay the pending amounts without applying inputs.
+		PendingRecoilPitch = FMath::FInterpTo(PendingRecoilPitch, 0.0f, DeltaSeconds, RecoilRecoveryRate);
+		PendingRecoilYaw = FMath::FInterpTo(PendingRecoilYaw, 0.0f, DeltaSeconds, RecoilRecoveryRate);
+		return;
+	}
+
+	// 计算本帧应当回弹的量(Pending 向 0 衰减的差值)。
+	const float NewPendingPitch = FMath::FInterpTo(PendingRecoilPitch, 0.0f, DeltaSeconds, RecoilRecoveryRate);
+	const float NewPendingYaw = FMath::FInterpTo(PendingRecoilYaw, 0.0f, DeltaSeconds, RecoilRecoveryRate);
+
+	const float PitchRecover = PendingRecoilPitch - NewPendingPitch;
+	const float YawRecover = PendingRecoilYaw - NewPendingYaw;
+
+	// 回正方向:ApplyRecoil 用 -PitchDelta 把视角向上推,所以这里用 +PitchRecover 把视角向下拉回原位。
+	// Yaw 方向是对称的(偏左偏右都合理),回正用 -YawRecover 反向即可。
+	if (!FMath::IsNearlyZero(PitchRecover))
+	{
+		PC->AddPitchInput(PitchRecover);
+	}
+	if (!FMath::IsNearlyZero(YawRecover))
+	{
+		PC->AddYawInput(-YawRecover);
+	}
+
+	PendingRecoilPitch = NewPendingPitch;
+	PendingRecoilYaw = NewPendingYaw;
 }
 

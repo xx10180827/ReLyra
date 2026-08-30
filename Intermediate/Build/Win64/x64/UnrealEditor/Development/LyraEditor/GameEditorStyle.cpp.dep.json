@@ -1,0 +1,15 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\private\\gameeditorstyle.cpp",
+        "ProvidedModule": "",
+        "PCH": "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\lyraeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\lyraeditor\\definitions.lyraeditor.h",
+            "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\private\\gameeditorstyle.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\slatecore\\public\\styling\\slatestyleregistry.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

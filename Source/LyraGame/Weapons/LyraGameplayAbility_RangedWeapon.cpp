@@ -87,7 +87,15 @@ bool ULyraGameplayAbility_RangedWeapon::CanActivateAbility(const FGameplayAbilit
 
 	if (bResult)
 	{
-		if (GetWeaponInstance() == nullptr)
+		if (ULyraRangedWeaponInstance* WeaponInstance = GetWeaponInstance())
+		{
+			// Block firing when the magazine is empty; the player must reload first.
+			if (!WeaponInstance->CanFire())
+			{
+				bResult = false;
+			}
+		}
+		else
 		{
 			UE_LOG(LogLyraAbilitySystem, Error, TEXT("Weapon ability %s cannot be activated because there is no associated ranged weapon (equipment instance=%s but needs to be derived from %s)"),
 				*GetPathName(),
@@ -534,6 +542,12 @@ void ULyraGameplayAbility_RangedWeapon::OnTargetDataReadyCallback(const FGamepla
 			ULyraRangedWeaponInstance* WeaponData = GetWeaponInstance();
 			check(WeaponData);
 			WeaponData->AddSpread();
+
+			// Consume a single round from the magazine for the cartridge we just fired.
+			WeaponData->ConsumeAmmo(1);
+
+			// Apply view recoil to the locally-controlled player; no-op on dedicated servers / AI pawns.
+			WeaponData->ApplyRecoil();
 
 			// Let the blueprint do stuff like apply effects to the targets
 			OnRangedWeaponTargetDataReady(LocalTargetDataHandle);

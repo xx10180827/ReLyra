@@ -1,0 +1,20 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "d:\\ue5_my_project\\lyrastartergame\\source\\lyraeditor\\utilities\\diffcollectionreferencesupport.cpp",
+        "ProvidedModule": "",
+        "PCH": "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\lyraeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "d:\\ue5_my_project\\lyrastartergame\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\lyraeditor\\definitions.lyraeditor.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\assetregistry\\public\\assetregistry\\iassetregistry.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\runtime\\coreuobject\\public\\misc\\assetregistryinterface.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\assetregistry\\uht\\iassetregistry.generated.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\developer\\collectionmanager\\public\\collectionmanagermodule.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\developer\\collectionmanager\\public\\icollectionmanager.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\developer\\collectionmanager\\public\\collectionmanagertypes.h",
+            "d:\\ue_engine\\ue_.5.4\\ue_5.4\\engine\\source\\developer\\sourcecontrol\\public\\isourcecontrolstate.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

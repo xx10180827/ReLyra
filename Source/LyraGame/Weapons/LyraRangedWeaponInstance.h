@@ -74,6 +74,12 @@ public:
 		return CurrentAmmo > 0;
 	}
 
+	/** Returns true when the magazine is not full and reserve ammo is available. */
+	bool CanReload() const
+	{
+		return (CurrentAmmo < MaxAmmo) && (CurrentReserveAmmo > 0);
+	}
+
 	/** Returns the current ammo count. */
 	int32 GetCurrentAmmo() const
 	{
@@ -86,17 +92,71 @@ public:
 		return MaxAmmo;
 	}
 
+	/** Returns the current reserve ammo count. */
+	int32 GetCurrentReserveAmmo() const
+	{
+		return CurrentReserveAmmo;
+	}
+
+	/** Returns the maximum reserve ammo count. */
+	int32 GetMaxReserveAmmo() const
+	{
+		return MaxReserveAmmo;
+	}
+
 	/** Returns the time (in seconds) it takes to reload the weapon. */
 	float GetReloadTime() const
 	{
 		return ReloadTime;
 	}
 
+	/** Returns the minimum per-shot upward recoil (degrees). */
+	float GetRecoilPitchMin() const
+	{
+		return RecoilPitchMin;
+	}
+
+	/** Returns the maximum per-shot upward recoil (degrees). */
+	float GetRecoilPitchMax() const
+	{
+		return RecoilPitchMax;
+	}
+
+	/** Returns the minimum per-shot yaw recoil (degrees). */
+	float GetRecoilYawMin() const
+	{
+		return RecoilYawMin;
+	}
+
+	/** Returns the maximum per-shot yaw recoil (degrees). */
+	float GetRecoilYawMax() const
+	{
+		return RecoilYawMax;
+	}
+
+	/** Returns the rate at which pending recoil recovers (@see FInterpTo). */
+	float GetRecoilRecoveryRate() const
+	{
+		return RecoilRecoveryRate;
+	}
+
 	/** Consumes the requested amount of ammo, clamped at zero. */
 	void ConsumeAmmo(int32 Amount = 1);
 
-	/** Refills the current ammo to the maximum capacity (used by the reload ability). */
-	void RefillAmmo();
+	/**
+	 * Transfers reserve ammo into the magazine and returns the amount loaded.
+	 * The transfer is clamped by both the magazine's missing capacity and the remaining reserve ammo.
+	 */
+	int32 ReloadAmmo();
+
+	/** Applies a single shot's recoil to the locally-controlled player's view (no-op on dedicated servers / AI). */
+	void ApplyRecoil();
+
+	/** Returns true if there is any pending recoil left to recover from. */
+	bool HasPendingRecoil() const
+	{
+		return (PendingRecoilPitch != 0.0f) || (PendingRecoilYaw != 0.0f);
+	}
 
 protected:
 #if WITH_EDITORONLY_DATA
@@ -227,10 +287,38 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ForceUnits = s, ClampMin = 0.0))
 	float ReloadTime = 2.0f;
 
+	// Maximum amount of ammunition carried outside the magazine
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = 0))
+	int32 MaxReserveAmmo = 90;
+
+	// Minimum upward pitch (in degrees) applied to the view per shot
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = 0.0))
+	float RecoilPitchMin = 0.3f;
+
+	// Maximum upward pitch (in degrees) applied to the view per shot
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = 0.0))
+	float RecoilPitchMax = 0.8f;
+
+	// Minimum yaw (in degrees) applied to the view per shot
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil")
+	float RecoilYawMin = -0.2f;
+
+	// Maximum yaw (in degrees) applied to the view per shot
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil")
+	float RecoilYawMax = 0.2f;
+
+	// Speed at which the view recovers toward its pre-recoil orientation (higher = faster; @see FInterpTo)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recoil", meta = (ClampMin = 0.0))
+	float RecoilRecoveryRate = 6.0f;
+
 private:
 	// Current ammo in the magazine (runtime state, initialized to MaxAmmo on equip)
-	UPROPERTY(Transient, BlueprintReadOnly, VisibleAnywhere, Category = "Ammo")
+	UPROPERTY(Transient, BlueprintReadOnly, VisibleAnywhere, Category = "Ammo", meta = (AllowPrivateAccess = "true"))
 	int32 CurrentAmmo = 30;
+
+	// Current ammunition carried outside the magazine (runtime state, initialized on equip)
+	UPROPERTY(Transient, BlueprintReadOnly, VisibleAnywhere, Category = "Ammo", meta = (AllowPrivateAccess = "true"))
+	int32 CurrentReserveAmmo = 90;
 
 	// Time since this weapon was last fired (relative to world time)
 	double LastFireTime = 0.0;
@@ -256,6 +344,12 @@ private:
 	// The current crouching multiplier
 	float CrouchingMultiplier = 1.0f;
 
+	// Remaining upward pitch (in degrees) that the view still needs to recover from after recent shots
+	float PendingRecoilPitch = 0.0f;
+
+	// Remaining yaw (in degrees) that the view still needs to recover from after recent shots
+	float PendingRecoilYaw = 0.0f;
+
 public:
 	void Tick(float DeltaSeconds);
 
@@ -270,6 +364,10 @@ public:
 	virtual float GetDistanceAttenuation(float Distance, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr) const override;
 	virtual float GetPhysicalMaterialAttenuation(const UPhysicalMaterial* PhysicalMaterial, const FGameplayTagContainer* SourceTags = nullptr, const FGameplayTagContainer* TargetTags = nullptr) const override;
 	//~End of ILyraAbilitySourceInterface interface
+
+protected:
+	// Resets the runtime magazine and reserve counts from the configured capacities.
+	void ResetAmmoState();
 
 private:
 	void ComputeSpreadRange(float& MinSpread, float& MaxSpread);
@@ -289,4 +387,7 @@ private:
 
 	// Updates the multipliers and returns true if they are at minimum
 	bool UpdateMultipliers(float DeltaSeconds);
+
+	// Smoothly recovers pending recoil by feeding opposite input to the player controller's view (local control only).
+	void UpdateRecoilRecovery(float DeltaSeconds);
 };

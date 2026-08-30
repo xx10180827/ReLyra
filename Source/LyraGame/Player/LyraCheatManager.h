@@ -86,6 +86,65 @@ public:
 	UFUNCTION(Exec, BlueprintAuthorityOnly)
 	virtual void DamageSelfDestruct();
 
+	// Simulates a rapid-fire burst of the currently-equipped ranged weapon and samples ControlRotation
+	// every frame to validate the recoil system (ApplyRecoil -> AddPitchInput/AddYawInput and Tick recovery).
+	// Usage in PIE console:  TestRecoil [NumShots=10]
+	UFUNCTION(Exec)
+	void TestRecoil(int32 NumShots = 10);
+
+private:
+
+	// State machine for the TestRecoil console command. Kept as a single struct so it's easy to reset.
+	struct FRecoilTestState
+	{
+		// Live pointers - WeakObjectPtr so a mid-test unequip/garbage-collect won't crash the timer callbacks.
+		TWeakObjectPtr<class ULyraRangedWeaponInstance> Weapon;
+		TWeakObjectPtr<APlayerController> PC;
+
+		// Baseline view orientation captured at the moment the test started.
+		FRotator InitialRotation = FRotator::ZeroRotator;
+
+		// Fire phase bookkeeping.
+		int32 ShotsRequested = 0;
+		int32 ShotsFired = 0;
+		float FireInterval = 0.1f;	// seconds between simulated shots (10 Hz = rifle auto)
+
+		// Recovery phase bookkeeping.
+		bool bInRecoveryPhase = false;
+		float RecoveryElapsed = 0.0f;
+		float RecoveryDuration = 1.5f;	// seconds of recovery sampling before final report
+
+		// Sample cadence for both phases (one sample every 50 ms).
+		float SampleInterval = 0.05f;
+
+		// Observed extremes across the whole test, for the final pass/fail report.
+		float MaxAbsPitchDelta = 0.0f;
+		float MaxUpwardPitchDelta = 0.0f;
+		float MaxAbsYawDelta = 0.0f;
+		float FinalPitchDelta = 0.0f;
+		float FinalYawDelta = 0.0f;
+
+		// Timers driving the test phases. Two independent handles so that firing cadence and
+		// view-sampling cadence can run concurrently without one cancelling the other.
+		FTimerHandle FireTimer;
+		FTimerHandle SampleTimer;
+	};
+
+	FRecoilTestState RecoilTestState;
+
+	// Called once per FireInterval during the firing phase: invokes ApplyRecoil on the weapon and
+	// then schedules the next fire until ShotsFired reaches ShotsRequested.
+	UFUNCTION()
+	void OnRecoilTestFireTick();
+
+	// Called once per SampleInterval throughout the entire test: samples the current ControlRotation
+	// against InitialRotation, updates the observed maxima, and (in the recovery phase) checks completion.
+	UFUNCTION()
+	void OnRecoilTestSampleTick();
+
+	// Emits the pass/fail report to the console + log and clears the test state.
+	void FinalizeRecoilTest();
+
 	// Prevents the owning player from taking any damage.
 	virtual void God() override;
 
