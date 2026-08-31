@@ -2,8 +2,8 @@
 	"devices": [
 		{
 			"deviceName": "小小",
-			"instance": "79265DB046F9DC6F716222B5B9DFB050",
-			"instanceName": "小小-6324",
+			"instance": "D87013E9468CC02A7E95C0A67EB364B4",
+			"instanceName": "小小-133976",
 			"platform": "WindowsEditor",
 			"oSVersion": "Windows 11 (25H2) [10.0.26200.9168] ",
 			"model": "Default",
@@ -15,13 +15,13 @@
 			"appInstanceLog": ""
 		}
 	],
-	"reportCreatedOn": "2026.08.30-14.23.40",
+	"reportCreatedOn": "2026.08.30-22.02.27",
 	"succeeded": 2,
 	"succeededWithWarnings": 0,
 	"failed": 0,
 	"notRun": 0,
 	"inProcess": 0,
-	"totalDuration": 0.023923899978399277,
+	"totalDuration": 0.042661499232053757,
 	"comparisonExported": false,
 	"comparisonExportDirectory": "",
 	"tests": [
@@ -30,9 +30,9 @@
 			"fullTestPath": "Lyra.Weapons.Ranged.Ammo",
 			"state": "Success",
 			"deviceInstance": [
-				"79265DB046F9DC6F716222B5B9DFB050"
+				"D87013E9468CC02A7E95C0A67EB364B4"
 			],
-			"duration": 0.0067175999283790588,
+			"duration": 0.015157699584960938,
 			"dateTime": "0001.01.01-00.00.00",
 			"entries": [],
 			"warnings": 0,
@@ -44,9 +44,9 @@
 			"fullTestPath": "Lyra.Weapons.Shotgun.Defaults",
 			"state": "Success",
 			"deviceInstance": [
-				"79265DB046F9DC6F716222B5B9DFB050"
+				"D87013E9468CC02A7E95C0A67EB364B4"
 			],
-			"duration": 0.017206300050020218,
+			"duration": 0.027503799647092819,
 			"dateTime": "0001.01.01-00.00.00",
 			"entries": [],
 			"warnings": 0,

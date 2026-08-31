@@ -1,0 +1,16 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UnrealEditor-LyraGame.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\LyraEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h.obj"
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\Module.LyraGame.1.cpp.obj"
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\Module.LyraGame.2.cpp.obj"
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\Module.LyraGame.3.cpp.obj"
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\Module.LyraGame.4.cpp.obj"
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\LyraAbilitySet.cpp.obj"
+"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\Default.rc2.res"
+/OUT:"D:\UE5_My_Project\LyraStarterGame\Intermediate\Build\Win64\x64\UnrealEditor\Development\LyraGame\UnrealEditor-LyraGame.lib"

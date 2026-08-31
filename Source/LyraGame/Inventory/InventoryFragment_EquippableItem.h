@@ -10,8 +10,8 @@
 class ULyraEquipmentDefinition;
 class UObject;
 
-UCLASS()
-class UInventoryFragment_EquippableItem : public ULyraInventoryItemFragment
+UCLASS(BlueprintType)
+class LYRAGAME_API UInventoryFragment_EquippableItem : public ULyraInventoryItemFragment
 {
 	GENERATED_BODY()
 

@@ -48,6 +48,7 @@
 #include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/Teams/LyraTeamPublicInfo.cpp"
 #include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/Teams/LyraTeamStatics.cpp"
 #include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/Teams/LyraTeamSubsystem.cpp"
+#include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/Tests/LyraAmmoReloadTest.cpp"
 #include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/Tests/LyraTestControllerBootTest.cpp"
 #include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/UI/Basic/MaterialProgressBar.cpp"
 #include "D:/UE5_My_Project/LyraStarterGame/Source/LyraGame/UI/Common/LyraBoundActionButton.cpp"

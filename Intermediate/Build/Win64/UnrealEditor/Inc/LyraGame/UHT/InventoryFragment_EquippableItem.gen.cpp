@@ -31,6 +31,7 @@ struct Z_Construct_UClass_UInventoryFragment_EquippableItem_Statics
 {
 #if WITH_METADATA
 	static constexpr UECodeGen_Private::FMetaDataPairParam Class_MetaDataParams[] = {
+		{ "BlueprintType", "true" },
 		{ "IncludePath", "Inventory/InventoryFragment_EquippableItem.h" },
 		{ "ModuleRelativePath", "Inventory/InventoryFragment_EquippableItem.h" },
 	};
@@ -69,7 +70,7 @@ const UECodeGen_Private::FClassParams Z_Construct_UClass_UInventoryFragment_Equi
 	0,
 	UE_ARRAY_COUNT(Z_Construct_UClass_UInventoryFragment_EquippableItem_Statics::PropPointers),
 	0,
-	0x002010A0u,
+	0x003010A0u,
 	METADATA_PARAMS(UE_ARRAY_COUNT(Z_Construct_UClass_UInventoryFragment_EquippableItem_Statics::Class_MetaDataParams), Z_Construct_UClass_UInventoryFragment_EquippableItem_Statics::Class_MetaDataParams)
 };
 UClass* Z_Construct_UClass_UInventoryFragment_EquippableItem()
@@ -93,10 +94,10 @@ UInventoryFragment_EquippableItem::~UInventoryFragment_EquippableItem() {}
 struct Z_CompiledInDeferFile_FID_UE5_My_Project_LyraStarterGame_Source_LyraGame_Inventory_InventoryFragment_EquippableItem_h_Statics
 {
 	static constexpr FClassRegisterCompiledInInfo ClassInfo[] = {
-		{ Z_Construct_UClass_UInventoryFragment_EquippableItem, UInventoryFragment_EquippableItem::StaticClass, TEXT("UInventoryFragment_EquippableItem"), &Z_Registration_Info_UClass_UInventoryFragment_EquippableItem, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(UInventoryFragment_EquippableItem), 3723313257U) },
+		{ Z_Construct_UClass_UInventoryFragment_EquippableItem, UInventoryFragment_EquippableItem::StaticClass, TEXT("UInventoryFragment_EquippableItem"), &Z_Registration_Info_UClass_UInventoryFragment_EquippableItem, CONSTRUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(UInventoryFragment_EquippableItem), 1102381635U) },
 	};
 };
-static FRegisterCompiledInInfo Z_CompiledInDeferFile_FID_UE5_My_Project_LyraStarterGame_Source_LyraGame_Inventory_InventoryFragment_EquippableItem_h_3457227960(TEXT("/Script/LyraGame"),
+static FRegisterCompiledInInfo Z_CompiledInDeferFile_FID_UE5_My_Project_LyraStarterGame_Source_LyraGame_Inventory_InventoryFragment_EquippableItem_h_1444232434(TEXT("/Script/LyraGame"),
 	Z_CompiledInDeferFile_FID_UE5_My_Project_LyraStarterGame_Source_LyraGame_Inventory_InventoryFragment_EquippableItem_h_Statics::ClassInfo, UE_ARRAY_COUNT(Z_CompiledInDeferFile_FID_UE5_My_Project_LyraStarterGame_Source_LyraGame_Inventory_InventoryFragment_EquippableItem_h_Statics::ClassInfo),
 	nullptr, 0,
 	nullptr, 0);

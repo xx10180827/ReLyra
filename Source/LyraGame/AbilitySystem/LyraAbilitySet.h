@@ -30,7 +30,7 @@ struct FLyraAbilitySet_GameplayAbility
 public:
 
 	// Gameplay ability to grant.
-	UPROPERTY(EditDefaultsOnly)
+	UPROPERTY(EditAnywhere)
 	TSubclassOf<ULyraGameplayAbility> Ability = nullptr;
 
 	// Level of ability to grant.

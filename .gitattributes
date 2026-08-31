@@ -11,3 +11,7 @@
 /Binaries/Win64/UnrealEditor-LyraGame.pdb filter=lfs diff=lfs merge=lfs -text
 /DerivedDataCache/Compressed.ddp filter=lfs diff=lfs merge=lfs -text
 /Intermediate/Build/Win64/x64/LyraEditor/Development/UnrealEd/SharedPCH.UnrealEd.Project.ValApi.Cpp20.h.pch filter=lfs diff=lfs merge=lfs -text
+/.vs/Lyra/CopilotIndices/17.12.38.29086/CodeChunks.db filter=lfs diff=lfs merge=lfs -text
+/.vs/Lyra/CopilotIndices/17.12.38.29086/SemanticSymbols.db filter=lfs diff=lfs merge=lfs -text
+/.vs/Lyra/v17/Browse.VC.db filter=lfs diff=lfs merge=lfs -text
+/.vs/Lyra/v17/Solution.VC.db filter=lfs diff=lfs merge=lfs -text

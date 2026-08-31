@@ -51,7 +51,7 @@ void EmptyLinkFunctionForGeneratedCodeLyraGame_init() {}
 				SingletonFuncArray,
 				UE_ARRAY_COUNT(SingletonFuncArray),
 				PKG_CompiledIn | 0x00000000,
-				0x53491E64,
+				0xCCE208AA,
 				0x05C8F90A,
 				METADATA_PARAMS(0, nullptr)
 			};
@@ -59,5 +59,5 @@ void EmptyLinkFunctionForGeneratedCodeLyraGame_init() {}
 		}
 		return Z_Registration_Info_UPackage__Script_LyraGame.OuterSingleton;
 	}
-	static FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage__Script_LyraGame(Z_Construct_UPackage__Script_LyraGame, TEXT("/Script/LyraGame"), Z_Registration_Info_UPackage__Script_LyraGame, CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, 0x53491E64, 0x05C8F90A));
+	static FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage__Script_LyraGame(Z_Construct_UPackage__Script_LyraGame, TEXT("/Script/LyraGame"), Z_Registration_Info_UPackage__Script_LyraGame, CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, 0xCCE208AA, 0x05C8F90A));
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
