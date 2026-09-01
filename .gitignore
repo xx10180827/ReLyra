@@ -1,0 +1,14 @@
+# UE5 编译临时文件
+Intermediate/
+Binaries/
+Saved/
+DerivedDataCache/
+*.pch
+*.pdb
+*.obj
+*.db
+*.ddp
+*.lib
+*.exp
+*.ilk
+*.exe
