@@ -1,14 +1,46 @@
-# UE5 编译临时文件
-Intermediate/
+# Unreal Engine generated files
 Binaries/
-Saved/
 DerivedDataCache/
-*.pch
+Intermediate/
+Saved/
+
+# Visual Studio
+.vs/
+*.sln
+*.suo
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Unreal generated plugin files
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# Build products
 *.pdb
 *.obj
-*.db
-*.ddp
+*.dll
+*.exe
 *.lib
 *.exp
 *.ilk
-*.exe
+*.iobj
+*.ipdb
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
