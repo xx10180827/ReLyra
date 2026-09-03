@@ -32,7 +32,7 @@ public:
 	UFUNCTION(BlueprintPure, Category=Equipment)
 	UObject* GetInstigator() const { return Instigator; }
 
-	void SetInstigator(UObject* InInstigator) { Instigator = InInstigator; }
+	void SetInstigator(UObject* InInstigator);
 
 	UFUNCTION(BlueprintPure, Category=Equipment)
 	APawn* GetPawn() const;
@@ -50,6 +50,9 @@ public:
 	virtual void OnUnequipped();
 
 protected:
+	/** Called after the instigator is assigned locally or replicated. */
+	virtual void OnInstigatorChanged();
+
 #if UE_WITH_IRIS
 	/** Register all replication fragments */
 	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;

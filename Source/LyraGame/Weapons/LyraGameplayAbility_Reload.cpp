@@ -50,7 +50,8 @@ void ULyraGameplayAbility_Reload::ActivateAbility(const FGameplayAbilitySpecHand
 		return;
 	}
 
-	// Play the reload montage on the avatar if one was provided. Montage interruption is intentionally
+	// Play the mannequin/character montage on the avatar. Its AN_PlayWeaponMontage notify drives the
+	// corresponding AM_Weap_* montage on the equipped gun. Montage interruption is intentionally
 	// not used to cancel reloading in the current single-player scope; ReloadTime remains the source of truth.
 	if (ReloadMontage != nullptr)
 	{

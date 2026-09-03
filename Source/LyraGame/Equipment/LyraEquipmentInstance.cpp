@@ -42,6 +42,16 @@ void ULyraEquipmentInstance::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(ThisClass, SpawnedActors);
 }
 
+void ULyraEquipmentInstance::SetInstigator(UObject* InInstigator)
+{
+	Instigator = InInstigator;
+	OnInstigatorChanged();
+}
+
+void ULyraEquipmentInstance::OnInstigatorChanged()
+{
+}
+
 #if UE_WITH_IRIS
 void ULyraEquipmentInstance::RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags)
 {
@@ -115,5 +125,6 @@ void ULyraEquipmentInstance::OnUnequipped()
 
 void ULyraEquipmentInstance::OnRep_Instigator()
 {
+	OnInstigatorChanged();
 }
 

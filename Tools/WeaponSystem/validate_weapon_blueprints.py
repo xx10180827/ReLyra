@@ -23,8 +23,10 @@ PATHS = {
     "rifle_pickup": ROOT + "/Weapons/Rifle/WeaponPickupData_WS_Rifle",
     "shotgun_pickup": ROOT + "/Weapons/Shotgun/WeaponPickupData_WS_Shotgun",
     "test_map": ROOT + "/Maps/L_WS_WeaponTest",
-    "rifle_reload_montage": "/Game/Weapons/Rifle/Animations/AM_Weap_Rifle_Reload.AM_Weap_Rifle_Reload",
-    "shotgun_reload_montage": "/Game/Weapons/Shotgun/Animations/AM_Weap_Shotgun_Reload.AM_Weap_Shotgun_Reload",
+    "rifle_reload_montage": "/Game/Weapons/Rifle/Animations/AM_MM_Rifle_Reload.AM_MM_Rifle_Reload",
+    "shotgun_reload_montage": "/Game/Weapons/Shotgun/Animations/AM_MM_Shotgun_Reload.AM_MM_Shotgun_Reload",
+    "shotgun_hold_layer": "/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Shotgun/ABP_ShotgunAnimLayers",
+    "shotgun_hold_layer_feminine": "/Game/Characters/Heroes/Mannequin/Animations/Locomotion/Shotgun/ABP_ShotgunAnimLayers_Feminine",
 }
 
 
@@ -186,6 +188,23 @@ def validate_item(label, asset_path, equipment_class):
     return generated_class
 
 
+def validate_shotgun_hold_layers(shotgun_class):
+    default_object = unreal.get_default_object(shotgun_class)
+    equipped_set = default_object.get_editor_property("equipped_anim_set")
+    check_equal(
+        "ShotgunInstance.HoldDefaultLayer",
+        path_name(equipped_set.get_editor_property("default_layer")),
+        path_name(load_class(PATHS["shotgun_hold_layer"])),
+    )
+    rules = list(equipped_set.get_editor_property("layer_rules"))
+    check_equal("ShotgunInstance.HoldLayerRuleCount", len(rules), 1)
+    check_equal(
+        "ShotgunInstance.HoldFeminineLayer",
+        path_name(rules[0].get_editor_property("layer")),
+        path_name(load_class(PATHS["shotgun_hold_layer_feminine"])),
+    )
+
+
 def validate_pickup(label, asset_path, item_class):
     pickup = load_asset(asset_path)
     check_equal(label + ".InventoryItemDefinition",
@@ -241,6 +260,7 @@ def main():
         "RifleInstance", PATHS["rifle_instance"],
         "/Script/LyraGame.LyraRangedWeaponInstance",
         {
+            "use_finite_ammo_system": True,
             "max_ammo": 30,
             "max_reserve_ammo": 90,
             "reload_time": 2.0,
@@ -255,6 +275,7 @@ def main():
         "ShotgunInstance", PATHS["shotgun_instance"],
         "/Script/LyraGame.LyraShotgunWeaponInstance",
         {
+            "use_finite_ammo_system": True,
             "max_ammo": 6,
             "max_reserve_ammo": 24,
             "reload_time": 2.5,
@@ -268,6 +289,7 @@ def main():
             "recoil_recovery_rate": 5.0,
         },
     )
+    validate_shotgun_hold_layers(shotgun_instance)
 
     rifle_equipment = validate_equipment(
         "RifleEquipment", PATHS["rifle_equipment"], rifle_instance, rifle_ability_set

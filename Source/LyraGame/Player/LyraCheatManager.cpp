@@ -445,6 +445,13 @@ void ULyraCheatManager::TestRecoil(int32 NumShots)
 			World->GetTimerManager().ClearTimer(RecoilTestState.SampleTimer);
 		}
 	}
+	if (RecoilTestState.bLookInputLocked)
+	{
+		if (APlayerController* PreviousPC = RecoilTestState.PC.Get())
+		{
+			PreviousPC->SetIgnoreLookInput(false);
+		}
+	}
 	RecoilTestState = FRecoilTestState();
 
 	// Find the currently-equipped ranged weapon via the equipment manager on the pawn.
@@ -475,7 +482,9 @@ void ULyraCheatManager::TestRecoil(int32 NumShots)
 	const int32 EffectiveShots = FMath::Max(1, NumShots);
 	RecoilTestState.Weapon = Weapon;
 	RecoilTestState.PC = PC;
-	RecoilTestState.InitialRotation = PC->GetControlRotation();
+	PC->SetIgnoreLookInput(true);
+	RecoilTestState.bLookInputLocked = true;
+	RecoilTestState.InitialRotation = PC->GetControlRotation().GetNormalized();
 	RecoilTestState.ShotsRequested = EffectiveShots;
 
 	const FString StartMsg = FString::Printf(
@@ -552,17 +561,18 @@ void ULyraCheatManager::OnRecoilTestSampleTick()
 		return;
 	}
 
-	const FRotator CurrentRotation = PC->GetControlRotation();
-	const FRotator Delta = (CurrentRotation - RecoilTestState.InitialRotation).GetNormalized();
+	const FRotator CurrentRotation = PC->GetControlRotation().GetNormalized();
+	const float PitchDelta = FMath::FindDeltaAngleDegrees(RecoilTestState.InitialRotation.Pitch, CurrentRotation.Pitch);
+	const float YawDelta = FMath::FindDeltaAngleDegrees(RecoilTestState.InitialRotation.Yaw, CurrentRotation.Yaw);
 
-	const float AbsPitch = FMath::Abs(Delta.Pitch);
-	const float AbsYaw = FMath::Abs(Delta.Yaw);
+	const float AbsPitch = FMath::Abs(PitchDelta);
+	const float AbsYaw = FMath::Abs(YawDelta);
 	RecoilTestState.MaxAbsPitchDelta = FMath::Max(RecoilTestState.MaxAbsPitchDelta, AbsPitch);
-	RecoilTestState.MaxUpwardPitchDelta = FMath::Max(RecoilTestState.MaxUpwardPitchDelta, Delta.Pitch);
+	RecoilTestState.MaxUpwardPitchDelta = FMath::Max(RecoilTestState.MaxUpwardPitchDelta, -PitchDelta);
 	RecoilTestState.MaxAbsYawDelta = FMath::Max(RecoilTestState.MaxAbsYawDelta, AbsYaw);
 
-	RecoilTestState.FinalPitchDelta = Delta.Pitch;
-	RecoilTestState.FinalYawDelta = Delta.Yaw;
+	RecoilTestState.FinalPitchDelta = PitchDelta;
+	RecoilTestState.FinalYawDelta = YawDelta;
 
 	if (RecoilTestState.bInRecoveryPhase)
 	{
@@ -584,6 +594,11 @@ void ULyraCheatManager::FinalizeRecoilTest()
 	}
 
 	ULyraRangedWeaponInstance* Weapon = RecoilTestState.Weapon.Get();
+	APlayerController* PC = RecoilTestState.PC.Get();
+	if (RecoilTestState.bLookInputLocked && PC != nullptr)
+	{
+		PC->SetIgnoreLookInput(false);
+	}
 
 	// --- Pass / fail criteria ---------------------------------------------------------
 	// 1. ControlRotation pitch must have moved in the positive (upward) direction during the test.

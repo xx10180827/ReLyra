@@ -16,8 +16,10 @@ SOURCE = {
     "shotgun_item": "/ShooterCore/Weapons/Shotgun/ID_Shotgun",
     "rifle_pickup": "/ShooterCore/Weapons/Rifle/WeaponPickupData_Rifle",
     "shotgun_pickup": "/ShooterCore/Weapons/Shotgun/WeaponPickupData_Shotgun",
-    "rifle_reload_montage": "/Game/Weapons/Rifle/Animations/AM_Weap_Rifle_Reload",
-    "shotgun_reload_montage": "/Game/Weapons/Shotgun/Animations/AM_Weap_Shotgun_Reload",
+    # Play the mannequin montage on the character mesh. Its AN_PlayWeaponMontage notify
+    # triggers the matching AM_Weap_* montage on the equipped weapon mesh.
+    "rifle_reload_montage": "/Game/Weapons/Rifle/Animations/AM_MM_Rifle_Reload",
+    "shotgun_reload_montage": "/Game/Weapons/Shotgun/Animations/AM_MM_Shotgun_Reload",
 }
 
 DEST = {
@@ -159,6 +161,7 @@ def configure_weapon_instance(
     weapon_class = load_blueprint_class(asset_path)
     default_object = unreal.get_default_object(weapon_class)
     values = {
+        "use_finite_ammo_system": True,
         "max_ammo": max_ammo,
         "max_reserve_ammo": max_reserve_ammo,
         "reload_time": reload_time,

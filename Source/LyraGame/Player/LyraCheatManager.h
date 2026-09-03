@@ -87,7 +87,7 @@ public:
 	virtual void DamageSelfDestruct();
 
 	// Simulates a rapid-fire burst of the currently-equipped ranged weapon and samples ControlRotation
-	// every frame to validate the recoil system (ApplyRecoil -> AddPitchInput/AddYawInput and Tick recovery).
+	// every frame to validate the recoil system while temporarily ignoring manual look input.
 	// Usage in PIE console:  TestRecoil [NumShots=10]
 	UFUNCTION(Exec)
 	void TestRecoil(int32 NumShots = 10);
@@ -123,6 +123,7 @@ private:
 		float MaxAbsYawDelta = 0.0f;
 		float FinalPitchDelta = 0.0f;
 		float FinalYawDelta = 0.0f;
+		bool bLookInputLocked = false;
 
 		// Timers driving the test phases. Two independent handles so that firing cadence and
 		// view-sampling cadence can run concurrently without one cancelling the other.

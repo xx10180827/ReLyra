@@ -6,12 +6,16 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/LyraCameraComponent.h"
+#include "Inventory/LyraInventoryItemInstance.h"
 #include "Physics/PhysicalMaterialWithTags.h"
 #include "Weapons/LyraWeaponInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraRangedWeaponInstance)
 
 UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Lyra_Weapon_SteadyAimingCamera, "Lyra.Weapon.SteadyAimingCamera");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Lyra_ShooterGame_Weapon_MagazineAmmo, "Lyra.ShooterGame.Weapon.MagazineAmmo");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Lyra_ShooterGame_Weapon_MagazineSize, "Lyra.ShooterGame.Weapon.MagazineSize");
+UE_DEFINE_GAMEPLAY_TAG_STATIC(TAG_Lyra_ShooterGame_Weapon_SpareAmmo, "Lyra.ShooterGame.Weapon.SpareAmmo");
 
 ULyraRangedWeaponInstance::ULyraRangedWeaponInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -49,6 +53,7 @@ void ULyraRangedWeaponInstance::UpdateDebugVisualization()
 void ULyraRangedWeaponInstance::OnEquipped()
 {
 	Super::OnEquipped();
+	StopRecoilRecoveryTimer();
 
 	// Start heat in the middle
 	float MinHeatRange;
@@ -73,19 +78,48 @@ void ULyraRangedWeaponInstance::OnEquipped()
 
 void ULyraRangedWeaponInstance::ConsumeAmmo(int32 Amount)
 {
-	if (Amount > 0)
+	if (Amount <= 0)
 	{
+		return;
+	}
+
+	if (ULyraInventoryItemInstance* ItemInstance = GetAssociatedInventoryItem())
+	{
+		// GA_Weapon_Fire 的原生 Cost 已经先扣除了 MagazineAmmo。
+		// 这里只把权威库存值镜像到武器实例，不能再次写回或重复扣弹。
+		CurrentAmmo = FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_MagazineAmmo));
+		CurrentReserveAmmo = FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_SpareAmmo));
+	}
+	else
+	{
+		// 保留无 InventoryItem 的隔离测试与特殊武器实例行为。
 		CurrentAmmo = FMath::Max(0, CurrentAmmo - Amount);
 	}
 }
 
 int32 ULyraRangedWeaponInstance::ReloadAmmo()
 {
+	if (!bUseFiniteAmmoSystem)
+	{
+		return 0;
+	}
+
+	// 库存标签是唯一持久弹药来源；切枪后新建的 EquipmentInstance 也会读取同一份数据。
+	CurrentAmmo = GetCurrentAmmo();
+	CurrentReserveAmmo = GetCurrentReserveAmmo();
+
 	const int32 MissingAmmo = FMath::Max(0, MaxAmmo - CurrentAmmo);
 	const int32 LoadedAmmo = FMath::Min(MissingAmmo, CurrentReserveAmmo);
 
 	CurrentAmmo += LoadedAmmo;
 	CurrentReserveAmmo -= LoadedAmmo;
+
+	if (ULyraInventoryItemInstance* ItemInstance = GetAssociatedInventoryItem())
+	{
+		SetInventoryStatTagCount(ItemInstance, TAG_Lyra_ShooterGame_Weapon_MagazineSize, MaxAmmo);
+		SetInventoryStatTagCount(ItemInstance, TAG_Lyra_ShooterGame_Weapon_MagazineAmmo, CurrentAmmo);
+		SetInventoryStatTagCount(ItemInstance, TAG_Lyra_ShooterGame_Weapon_SpareAmmo, CurrentReserveAmmo);
+	}
 
 	return LoadedAmmo;
 }
@@ -96,8 +130,96 @@ void ULyraRangedWeaponInstance::ResetAmmoState()
 	CurrentReserveAmmo = FMath::Max(0, MaxReserveAmmo);
 }
 
+ULyraInventoryItemInstance* ULyraRangedWeaponInstance::GetAssociatedInventoryItem() const
+{
+	return Cast<ULyraInventoryItemInstance>(GetInstigator());
+}
+
+bool ULyraRangedWeaponInstance::CanFire() const
+{
+	return GetCurrentAmmo() > 0;
+}
+
+bool ULyraRangedWeaponInstance::CanReload() const
+{
+	return bUseFiniteAmmoSystem && (GetCurrentAmmo() < MaxAmmo) && (GetCurrentReserveAmmo() > 0);
+}
+
+int32 ULyraRangedWeaponInstance::GetCurrentAmmo() const
+{
+	if (ULyraInventoryItemInstance* ItemInstance = GetAssociatedInventoryItem())
+	{
+		return FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_MagazineAmmo));
+	}
+
+	return CurrentAmmo;
+}
+
+int32 ULyraRangedWeaponInstance::GetCurrentReserveAmmo() const
+{
+	if (const ULyraInventoryItemInstance* ItemInstance = GetAssociatedInventoryItem())
+	{
+		return FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_SpareAmmo));
+	}
+
+	return CurrentReserveAmmo;
+}
+
+void ULyraRangedWeaponInstance::OnInstigatorChanged()
+{
+	Super::OnInstigatorChanged();
+
+	if (ULyraInventoryItemInstance* ItemInstance = GetAssociatedInventoryItem())
+	{
+		const int32 InventoryMagazineAmmo = FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_MagazineAmmo));
+		const int32 InventoryMagazineSize = FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_MagazineSize));
+		const int32 InventorySpareAmmo = FMath::Max(0, ItemInstance->GetStatTagStackCount(TAG_Lyra_ShooterGame_Weapon_SpareAmmo));
+
+		if (bUseFiniteAmmoSystem)
+		{
+			// 自定义物品最初复制自 Lyra 资源（例如 999 备弹，或霰弹枪 5 发容量）。
+			// 仅首次发现容量不匹配/备弹超限时规范化；以后切枪则保留库存里的剩余值。
+			const bool bNeedsInitialNormalization = (InventoryMagazineSize != MaxAmmo) || (InventorySpareAmmo > MaxReserveAmmo);
+			CurrentAmmo = bNeedsInitialNormalization ? MaxAmmo : FMath::Min(InventoryMagazineAmmo, MaxAmmo);
+			CurrentReserveAmmo = bNeedsInitialNormalization ? MaxReserveAmmo : FMath::Min(InventorySpareAmmo, MaxReserveAmmo);
+
+			SetInventoryStatTagCount(ItemInstance, TAG_Lyra_ShooterGame_Weapon_MagazineSize, MaxAmmo);
+			SetInventoryStatTagCount(ItemInstance, TAG_Lyra_ShooterGame_Weapon_MagazineAmmo, CurrentAmmo);
+			SetInventoryStatTagCount(ItemInstance, TAG_Lyra_ShooterGame_Weapon_SpareAmmo, CurrentReserveAmmo);
+		}
+		else
+		{
+			// 原版手枪等武器只镜像自己的库存数值，绝不写入 30/90 默认配置。
+			CurrentAmmo = InventoryMagazineAmmo;
+			CurrentReserveAmmo = InventorySpareAmmo;
+		}
+	}
+}
+
+void ULyraRangedWeaponInstance::SetInventoryStatTagCount(ULyraInventoryItemInstance* ItemInstance, FGameplayTag Tag, int32 DesiredCount) const
+{
+	if ((ItemInstance == nullptr) || !Tag.IsValid())
+	{
+		return;
+	}
+
+	const int32 ClampedDesiredCount = FMath::Max(0, DesiredCount);
+	const int32 ExistingCount = ItemInstance->GetStatTagStackCount(Tag);
+	const int32 Delta = ClampedDesiredCount - ExistingCount;
+
+	if (Delta > 0)
+	{
+		ItemInstance->AddStatTagStack(Tag, Delta);
+	}
+	else if (Delta < 0)
+	{
+		ItemInstance->RemoveStatTagStack(Tag, -Delta);
+	}
+}
+
 void ULyraRangedWeaponInstance::OnUnequipped()
 {
+	StopRecoilRecoveryTimer();
 	PendingRecoilPitch = 0.0f;
 	PendingRecoilYaw = 0.0f;
 
@@ -113,9 +235,6 @@ void ULyraRangedWeaponInstance::Tick(float DeltaSeconds)
 	const bool bMinMultipliers = UpdateMultipliers(DeltaSeconds);
 
 	bHasFirstShotAccuracy = bAllowFirstShotAccuracy && bMinMultipliers && bMinSpread;
-
-	// Smoothly recover any pending recoil on the locally-controlled player's view.
-	UpdateRecoilRecovery(DeltaSeconds);
 
 #if WITH_EDITOR
 	UpdateDebugVisualization();
@@ -271,16 +390,19 @@ void ULyraRangedWeaponInstance::ApplyRecoil()
 	const float PitchDelta = FMath::FRandRange(RecoilPitchMin, RecoilPitchMax);
 	const float YawDelta = FMath::FRandRange(RecoilYawMin, RecoilYawMax);
 
-	// UE5 中 AddPitchInput 正值对应视角向下俯视、负值对应向上仰视。
-	// 后坐力预期是让枪口向上抬,因此这里传入 -PitchDelta。
-	// 摄像机管理器里的 PitchRate/YawRate 限制会缩放每帧实际位移速度。
-	PC->AddPitchInput(-PitchDelta);
-	PC->AddYawInput(YawDelta);
+	// 直接修改 ControlRotation，确保配置值始终表示真实角度，不受输入缩放、
+	// 控制台焦点或输入处理 Tick 顺序影响。UE 中负 Pitch 表示视角向上。
+	FRotator NewControlRotation = PC->GetControlRotation();
+	NewControlRotation.Pitch -= PitchDelta;
+	NewControlRotation.Yaw += YawDelta;
+	NewControlRotation.Normalize();
+	PC->SetControlRotation(NewControlRotation);
 
 	// 累计待回弹的量(始终为正值,代表视角被向上推开的幅度),
 	// 供 UpdateRecoilRecovery 在后续若干帧里反向施加 +PitchRecover 把视角拉回原位。
 	PendingRecoilPitch += PitchDelta;
 	PendingRecoilYaw += YawDelta;
+	StartRecoilRecoveryTimer();
 }
 
 void ULyraRangedWeaponInstance::UpdateRecoilRecovery(float DeltaSeconds)
@@ -312,18 +434,62 @@ void ULyraRangedWeaponInstance::UpdateRecoilRecovery(float DeltaSeconds)
 	const float PitchRecover = PendingRecoilPitch - NewPendingPitch;
 	const float YawRecover = PendingRecoilYaw - NewPendingYaw;
 
-	// 回正方向:ApplyRecoil 用 -PitchDelta 把视角向上推,所以这里用 +PitchRecover 把视角向下拉回原位。
-	// Yaw 方向是对称的(偏左偏右都合理),回正用 -YawRecover 反向即可。
-	if (!FMath::IsNearlyZero(PitchRecover))
-	{
-		PC->AddPitchInput(PitchRecover);
-	}
-	if (!FMath::IsNearlyZero(YawRecover))
-	{
-		PC->AddYawInput(-YawRecover);
-	}
+	// ApplyRecoil 使用 -PitchDelta / +YawDelta，因此恢复使用相反的实际角度。
+	FRotator NewControlRotation = PC->GetControlRotation();
+	NewControlRotation.Pitch += PitchRecover;
+	NewControlRotation.Yaw -= YawRecover;
+	NewControlRotation.Normalize();
+	PC->SetControlRotation(NewControlRotation);
 
 	PendingRecoilPitch = NewPendingPitch;
 	PendingRecoilYaw = NewPendingYaw;
+
+	if (FMath::IsNearlyZero(PendingRecoilPitch, 0.001f) && FMath::IsNearlyZero(PendingRecoilYaw, 0.001f))
+	{
+		PendingRecoilPitch = 0.0f;
+		PendingRecoilYaw = 0.0f;
+		StopRecoilRecoveryTimer();
+	}
+}
+
+void ULyraRangedWeaponInstance::StartRecoilRecoveryTimer()
+{
+	if (UWorld* World = GetWorld())
+	{
+		FTimerManager& TimerManager = World->GetTimerManager();
+		if (!TimerManager.IsTimerActive(RecoilRecoveryTimerHandle))
+		{
+			TimerManager.SetTimer(
+				RecoilRecoveryTimerHandle,
+				this,
+				&ThisClass::OnRecoilRecoveryTimerTick,
+				RecoilRecoveryTickInterval,
+				/*bLoop=*/ true);
+		}
+	}
+}
+
+void ULyraRangedWeaponInstance::StopRecoilRecoveryTimer()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(RecoilRecoveryTimerHandle);
+	}
+	else
+	{
+		RecoilRecoveryTimerHandle.Invalidate();
+	}
+}
+
+void ULyraRangedWeaponInstance::OnRecoilRecoveryTimerTick()
+{
+	if (UWorld* World = GetWorld())
+	{
+		UpdateRecoilRecovery(World->GetDeltaSeconds());
+	}
+	else
+	{
+		StopRecoilRecoveryTimer();
+	}
 }
 

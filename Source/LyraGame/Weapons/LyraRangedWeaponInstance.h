@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Curves/CurveFloat.h"
+#include "TimerManager.h"
 
 #include "LyraWeaponInstance.h"
 #include "AbilitySystem/LyraAbilitySourceInterface.h"
@@ -10,6 +11,7 @@
 #include "LyraRangedWeaponInstance.generated.h"
 
 class UPhysicalMaterial;
+class ULyraInventoryItemInstance;
 
 /**
  * ULyraRangedWeaponInstance
@@ -69,22 +71,13 @@ public:
 	}
 
 	/** Returns true if the weapon has ammo available to fire. */
-	bool CanFire() const
-	{
-		return CurrentAmmo > 0;
-	}
+	bool CanFire() const;
 
 	/** Returns true when the magazine is not full and reserve ammo is available. */
-	bool CanReload() const
-	{
-		return (CurrentAmmo < MaxAmmo) && (CurrentReserveAmmo > 0);
-	}
+	bool CanReload() const;
 
 	/** Returns the current ammo count. */
-	int32 GetCurrentAmmo() const
-	{
-		return CurrentAmmo;
-	}
+	int32 GetCurrentAmmo() const;
 
 	/** Returns the maximum ammo count. */
 	int32 GetMaxAmmo() const
@@ -93,10 +86,7 @@ public:
 	}
 
 	/** Returns the current reserve ammo count. */
-	int32 GetCurrentReserveAmmo() const
-	{
-		return CurrentReserveAmmo;
-	}
+	int32 GetCurrentReserveAmmo() const;
 
 	/** Returns the maximum reserve ammo count. */
 	int32 GetMaxReserveAmmo() const
@@ -108,6 +98,12 @@ public:
 	float GetReloadTime() const
 	{
 		return ReloadTime;
+	}
+
+	/** Enables/disables the opt-in finite-ammo system for native setup and tests. */
+	void SetFiniteAmmoSystemEnabled(bool bEnabled)
+	{
+		bUseFiniteAmmoSystem = bEnabled;
 	}
 
 	/** Returns the minimum per-shot upward recoil (degrees). */
@@ -280,6 +276,11 @@ protected:
 	TMap<FGameplayTag, float> MaterialDamageMultiplier;
 
 	// Maximum ammo capacity of the weapon's magazine
+	// Opt-in for the custom finite-ammo/reload system. Kept off by default so original Lyra weapons are untouched.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo")
+	bool bUseFiniteAmmoSystem = false;
+
+	// Maximum ammo capacity of the weapon's magazine
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo", meta = (ClampMin = 0))
 	int32 MaxAmmo = 30;
 
@@ -368,10 +369,16 @@ public:
 protected:
 	// Resets the runtime magazine and reserve counts from the configured capacities.
 	void ResetAmmoState();
+	virtual void OnInstigatorChanged() override;
 
 private:
 	void ComputeSpreadRange(float& MinSpread, float& MaxSpread);
 	void ComputeHeatRange(float& MinHeat, float& MaxHeat);
+	ULyraInventoryItemInstance* GetAssociatedInventoryItem() const;
+	void SetInventoryStatTagCount(ULyraInventoryItemInstance* ItemInstance, FGameplayTag Tag, int32 DesiredCount) const;
+	void StartRecoilRecoveryTimer();
+	void StopRecoilRecoveryTimer();
+	void OnRecoilRecoveryTimerTick();
 
 	inline float ClampHeat(float NewHeat)
 	{
@@ -388,6 +395,10 @@ private:
 	// Updates the multipliers and returns true if they are at minimum
 	bool UpdateMultipliers(float DeltaSeconds);
 
-	// Smoothly recovers pending recoil by feeding opposite input to the player controller's view (local control only).
+	// Smoothly recovers pending recoil on the locally-controlled player's view.
 	void UpdateRecoilRecovery(float DeltaSeconds);
+
+	// Recovery belongs to the weapon instance so it works in every experience and PIE mode.
+	FTimerHandle RecoilRecoveryTimerHandle;
+	static constexpr float RecoilRecoveryTickInterval = 1.0f / 60.0f;
 };

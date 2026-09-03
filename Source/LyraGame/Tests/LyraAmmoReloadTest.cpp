@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/AutomationTest.h"
+#include "Inventory/LyraInventoryItemInstance.h"
 #include "Weapons/LyraRangedWeaponInstance.h"
 #include "Weapons/LyraShotgunWeaponInstance.h"
 
@@ -34,6 +35,7 @@ bool FLyraRangedWeaponAmmoTest::RunTest(const FString& Parameters)
 	{
 		return false;
 	}
+	Weapon->SetFiniteAmmoSystemEnabled(true);
 
 	// --- 阶段 0: 初始状态 ---------------------------------------------------------
 	TestEqual(TEXT("步枪弹匣容量默认应为 30"), Weapon->GetMaxAmmo(), 30);
@@ -78,6 +80,88 @@ bool FLyraRangedWeaponAmmoTest::RunTest(const FString& Parameters)
 
 	// --- 阶段 5: 数值配置健全性 ---------------------------------------------------
 	TestEqual(TEXT("默认 ReloadTime 应为 2.0 秒"), Weapon->GetReloadTime(), 2.0f);
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FLyraRangedWeaponInventoryAmmoSyncTest,
+	"Lyra.Weapons.Ranged.InventoryAmmoSync",
+	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter
+)
+
+/**
+ * 回归测试：Lyra 原生开火 Cost 使用 InventoryItem 的 MagazineAmmo 标签，
+ * 自定义换弹使用武器实例的 CurrentAmmo。两者必须在换弹后保持一致，
+ * 否则界面虽然显示满弹，开火仍会在换弹前的旧数量处被 Cost 拦截。
+ */
+bool FLyraRangedWeaponInventoryAmmoSyncTest::RunTest(const FString& Parameters)
+{
+	ULyraRangedWeaponInstance* Weapon = NewObject<ULyraRangedWeaponInstance>(GetTransientPackage());
+	ULyraInventoryItemInstance* Item = NewObject<ULyraInventoryItemInstance>(GetTransientPackage());
+	TestNotNull(TEXT("应当能构造武器实例"), Weapon);
+	TestNotNull(TEXT("应当能构造库存物品实例"), Item);
+	if (!Weapon || !Item)
+	{
+		return false;
+	}
+	Weapon->SetFiniteAmmoSystemEnabled(true);
+
+	const FGameplayTag MagazineAmmoTag = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.MagazineAmmo"));
+	const FGameplayTag MagazineSizeTag = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.MagazineSize"));
+	const FGameplayTag SpareAmmoTag = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.SpareAmmo"));
+
+	Item->AddStatTagStack(MagazineAmmoTag, 30);
+	Item->AddStatTagStack(MagazineSizeTag, 30);
+	Item->AddStatTagStack(SpareAmmoTag, 90);
+	Weapon->SetInstigator(Item);
+
+	// 模拟原生 Cost 与武器实例共同处理前 16 次开火，剩余 14 发。
+	for (int32 ShotIndex = 0; ShotIndex < 16; ++ShotIndex)
+	{
+		Item->RemoveStatTagStack(MagazineAmmoTag, 1);
+		Weapon->ConsumeAmmo(1);
+	}
+	TestEqual(TEXT("换弹前武器实例应剩余 14 发"), Weapon->GetCurrentAmmo(), 14);
+	TestEqual(TEXT("换弹前原生 Cost 标签应剩余 14 发"), Item->GetStatTagStackCount(MagazineAmmoTag), 14);
+
+	TestEqual(TEXT("换弹应装入 16 发"), Weapon->ReloadAmmo(), 16);
+	TestEqual(TEXT("换弹后武器实例应为 30 发"), Weapon->GetCurrentAmmo(), 30);
+	TestEqual(TEXT("换弹后原生 Cost 标签也必须恢复为 30 发"), Item->GetStatTagStackCount(MagazineAmmoTag), 30);
+	TestEqual(TEXT("换弹后备弹标签应同步为 74 发"), Item->GetStatTagStackCount(SpareAmmoTag), 74);
+
+	// 逐发模拟原生 Cost：换弹后的 30 发都必须能够通过检查并被消费。
+	for (int32 ShotIndex = 0; ShotIndex < 30; ++ShotIndex)
+	{
+		TestTrue(FString::Printf(TEXT("换弹后第 %d 发开火前原生 Cost 应仍有弹药"), ShotIndex + 1),
+			Item->GetStatTagStackCount(MagazineAmmoTag) >= 1);
+		Item->RemoveStatTagStack(MagazineAmmoTag, 1);
+		Weapon->ConsumeAmmo(1);
+	}
+
+	TestEqual(TEXT("换弹后的 30 发应全部能够打完"), Weapon->GetCurrentAmmo(), 0);
+	TestEqual(TEXT("打完后原生 Cost 标签也应为 0"), Item->GetStatTagStackCount(MagazineAmmoTag), 0);
+
+	// 模拟切走后重新创建 EquipmentInstance；备弹必须从同一个 InventoryItem 恢复，而不是回满。
+	ULyraRangedWeaponInstance* ReequippedWeapon = NewObject<ULyraRangedWeaponInstance>(GetTransientPackage());
+	ReequippedWeapon->SetFiniteAmmoSystemEnabled(true);
+	ReequippedWeapon->SetInstigator(Item);
+	TestEqual(TEXT("重新装备后空弹匣状态应保持"), ReequippedWeapon->GetCurrentAmmo(), 0);
+	TestEqual(TEXT("重新装备后备弹应保持 74，不能自动恢复为 90"), ReequippedWeapon->GetCurrentReserveAmmo(), 74);
+
+	// 回归保护：普通手枪仍使用自己的库存标签，不能被基类默认的 30/90 覆盖。
+	ULyraRangedWeaponInstance* PistolWeapon = NewObject<ULyraRangedWeaponInstance>(GetTransientPackage());
+	ULyraInventoryItemInstance* PistolItem = NewObject<ULyraInventoryItemInstance>(GetTransientPackage());
+	PistolItem->AddStatTagStack(MagazineAmmoTag, 12);
+	PistolItem->AddStatTagStack(MagazineSizeTag, 12);
+	PistolItem->AddStatTagStack(SpareAmmoTag, 36);
+	PistolWeapon->SetInstigator(PistolItem);
+	TestEqual(TEXT("手枪装备后应保持自己的 12 发弹匣"), PistolWeapon->GetCurrentAmmo(), 12);
+	PistolItem->RemoveStatTagStack(MagazineAmmoTag, 1);
+	PistolWeapon->ConsumeAmmo(1);
+	TestEqual(TEXT("手枪开火后应剩余 11 发"), PistolItem->GetStatTagStackCount(MagazineAmmoTag), 11);
+	TestEqual(TEXT("手枪弹匣容量不能被覆盖为 30"), PistolItem->GetStatTagStackCount(MagazineSizeTag), 12);
+	TestEqual(TEXT("手枪备弹不能被覆盖为 90"), PistolItem->GetStatTagStackCount(SpareAmmoTag), 36);
 
 	return true;
 }

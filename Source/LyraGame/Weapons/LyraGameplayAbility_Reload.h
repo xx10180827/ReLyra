@@ -13,7 +13,7 @@ class UAnimMontage;
  * ULyraGameplayAbility_Reload
  *
  * An ability granted by a ranged weapon that reloads its magazine.
- * Plays a reload montage and, after the weapon's ReloadTime has elapsed,
+ * Plays a character reload montage and, after the weapon's ReloadTime has elapsed,
  * transfers finite reserve ammo into the magazine after ReloadTime elapses.
  */
 UCLASS()
@@ -36,7 +36,8 @@ protected:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	//~End of UGameplayAbility interface
 
-	// Montage to play while reloading. Its duration should roughly match the weapon's ReloadTime.
+	// Character-mesh montage to play while reloading. Lyra's montage notify drives the weapon-mesh montage.
+	// Its duration should roughly match the weapon's ReloadTime.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reload")
 	TObjectPtr<UAnimMontage> ReloadMontage = nullptr;
 
