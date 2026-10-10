@@ -1,33 +1,57 @@
-# Unreal Engine generated files
-Binaries/
-DerivedDataCache/
-Intermediate/
-Saved/
+# Unreal generated directories
+**/Binaries/
+**/Intermediate/
+**/DerivedDataCache/
+**/Saved/
+
+# AutomationTool / MSBuild generated files (keep Build scripts and resources)
+/Build/Scripts/**/bin/
+/Build/Scripts/**/obj/
+
+# Local packaged builds and manual backups (keep required Build resources)
+/PackagedBuilds/
+/StagedBuilds/
+/Releases/
+/Backups/
+
+# Generated cooked containers and local archives
+# Add explicit exceptions if a dependency requires a checked-in archive.
+*.pak
+*.ucas
+*.utoc
+*.zip
+*.7z
+*.rar
 
 # Visual Studio
 .vs/
 *.sln
+*.slnx
 *.suo
+*.user
+*.vcxproj
+*.vcxproj.filters
 *.opensdf
 *.sdf
 *.VC.db
-*.VC.VC.opendb
+*.VC.opendb
+*.VC.db-shm
+*.VC.db-wal
 
 # VS Code
 .vscode/
 
 # Rider
 .idea/
+*.DotSettings.user
 
 # OS files
 .DS_Store
 Thumbs.db
-
-# Unreal generated plugin files
-Plugins/*/Binaries/
-Plugins/*/Intermediate/
+Desktop.ini
 
 # Build products
+# Add explicit exceptions if a future plugin requires prebuilt binaries.
 *.pdb
 *.obj
 *.dll
@@ -37,6 +61,11 @@ Plugins/*/Intermediate/
 *.ilk
 *.iobj
 *.ipdb
+*.pch
+
+# Local crash and profiling captures
+*.dmp
+*.utrace
 
 # Logs
 *.log
@@ -44,3 +73,12 @@ Plugins/*/Intermediate/
 # Temporary files
 *.tmp
 *.temp
+
+# Local assistant scratch files
+/work/
+
+# Keep Source/, Config/, Content/, *.uproject and *.uplugin under version control.
+# Keep required Build resources and source art; do not exclude assets by size alone.
+# Required UE assets are managed by Git LFS via .gitattributes.
+# Git LFS still uploads asset data; these rules do not impose a size or quota limit.
+# Ignore rules do not apply to files already tracked by Git.
