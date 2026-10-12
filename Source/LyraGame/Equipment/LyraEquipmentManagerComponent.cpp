@@ -8,6 +8,7 @@
 #include "LyraEquipmentDefinition.h"
 #include "LyraEquipmentInstance.h"
 #include "Net/UnrealNetwork.h"
+#include "Templates/UnrealTemplate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraEquipmentManagerComponent)
 
@@ -33,6 +34,9 @@ void FLyraEquipmentList::PreReplicatedRemove(const TArrayView<int32> RemovedIndi
 		if (Entry.Instance != nullptr)
 		{
 			Entry.Instance->OnUnequipped();
+			// A retired subobject no longer replicates its cleared server-side Instigator.
+			// Clear the client's old reference when its equipment entry is removed as well.
+			Entry.Instance->SetInstigator(nullptr);
 		}
  	}
 }
@@ -147,6 +151,7 @@ void ULyraEquipmentManagerComponent::GetLifetimeReplicatedProps(TArray< FLifetim
 
 ULyraEquipmentInstance* ULyraEquipmentManagerComponent::EquipItem(TSubclassOf<ULyraEquipmentDefinition> EquipmentClass)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bUnequipping) { return nullptr; }
 	ULyraEquipmentInstance* Result = nullptr;
 	if (EquipmentClass != nullptr)
 	{
@@ -166,6 +171,9 @@ ULyraEquipmentInstance* ULyraEquipmentManagerComponent::EquipItem(TSubclassOf<UL
 
 void ULyraEquipmentManagerComponent::UnequipItem(ULyraEquipmentInstance* ItemInstance)
 {
+	if (bUnequipping || !IsValid(ItemInstance) || !EquipmentList.Entries.ContainsByPredicate(
+		[ItemInstance](const FLyraAppliedEquipmentEntry& Entry) { return Entry.Instance == ItemInstance; })) { return; }
+	TGuardValue<bool> Guard(bUnequipping, true);
 	if (ItemInstance != nullptr)
 	{
 		if (IsUsingRegisteredSubObjectList())
@@ -175,6 +183,7 @@ void ULyraEquipmentManagerComponent::UnequipItem(ULyraEquipmentInstance* ItemIns
 
 		ItemInstance->OnUnequipped();
 		EquipmentList.RemoveEntry(ItemInstance);
+		ItemInstance->SetInstigator(nullptr);
 	}
 }
 

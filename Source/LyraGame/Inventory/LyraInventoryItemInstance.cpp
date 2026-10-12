@@ -3,6 +3,8 @@
 #include "LyraInventoryItemInstance.h"
 
 #include "Inventory/LyraInventoryItemDefinition.h"
+#include "Inventory/LyraInventoryItemSnapshot.h"
+#include "Inventory/InventoryFragment_SetStats.h"
 #include "Net/UnrealNetwork.h"
 
 #if UE_WITH_IRIS
@@ -56,9 +58,49 @@ bool ULyraInventoryItemInstance::HasStatTag(FGameplayTag Tag) const
 	return StatTags.ContainsTag(Tag);
 }
 
+bool ULyraInventoryItemInstance::HasDefaultStatTags() const
+{
+	if (!ItemDef) { return false; }
+	TMap<FGameplayTag, int32> Expected;
+	for (const ULyraInventoryItemFragment* Fragment : GetDefault<ULyraInventoryItemDefinition>(ItemDef)->Fragments)
+	{
+		if (const auto* Stats = Cast<UInventoryFragment_SetStats>(Fragment))
+		{
+			for (const auto& Pair : Stats->GetInitialItemStats())
+			{
+				if (Pair.Key.IsValid() && Pair.Value > 0)
+				{
+					const int64 Sum = int64(Expected.FindRef(Pair.Key)) + Pair.Value;
+					if (Sum > MAX_int32) { return false; }
+					Expected.Add(Pair.Key, int32(Sum));
+				}
+			}
+		}
+	}
+	const auto& Actual = StatTags.GetTagCounts();
+	if (Expected.Num() != Actual.Num()) { return false; }
+	for (const auto& Pair : Expected)
+	{
+		if (Actual.FindRef(Pair.Key) != Pair.Value) { return false; }
+	}
+	return true;
+}
+
 void ULyraInventoryItemInstance::SetItemDef(TSubclassOf<ULyraInventoryItemDefinition> InDef)
 {
 	ItemDef = InDef;
+}
+
+void ULyraInventoryItemInstance::InitializeFromSnapshot(const FLyraInventoryItemSnapshot& Snapshot)
+{
+	// Only called on a fresh instance. Never copy a live FastArray serializer.
+	check(Snapshot.IsValid());
+	check(!ItemDef && StatTags.GetTagCounts().IsEmpty());
+	ItemDef = Snapshot.ItemDef;
+	for (const auto& Pair : Snapshot.StatTags)
+	{
+		StatTags.AddStack(Pair.Key, Pair.Value);
+	}
 }
 
 const ULyraInventoryItemFragment* ULyraInventoryItemInstance::FindFragmentByClass(TSubclassOf<ULyraInventoryItemFragment> FragmentClass) const

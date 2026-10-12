@@ -1,14 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LyraInventoryManagerComponent.h"
+#include "Equipment/LyraQuickBarComponent.h"
+#include "Equipment/LyraEquipmentManagerComponent.h"
+#include "Equipment/LyraEquipmentInstance.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 
 #include "Engine/ActorChannel.h"
 #include "Engine/World.h"
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "LyraInventoryItemDefinition.h"
 #include "LyraInventoryItemInstance.h"
+#include "LyraInventoryGameMode.h"
 #include "NativeGameplayTags.h"
 #include "Net/UnrealNetwork.h"
+#include "Templates/UnrealTemplate.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraInventoryManagerComponent)
 
@@ -88,9 +95,18 @@ ULyraInventoryItemInstance* FLyraInventoryList::AddEntry(TSubclassOf<ULyraInvent
 	check(OwningActor->HasAuthority());
 
 
+	const int32 NewSlot = FindFirstFreeSlot();
+	ULyraInventoryManagerComponent* Manager = CastChecked<ULyraInventoryManagerComponent>(OwnerComponent);
+	if (Manager->GetSlotCapacity() > 0 && NewSlot >= Manager->GetSlotCapacity())
+	{
+		return nullptr;
+	}
 	FLyraInventoryEntry& NewEntry = Entries.AddDefaulted_GetRef();
+	NewEntry.EntryId = FGuid::NewGuid();
+	NewEntry.SlotIndex = NewSlot;
 	NewEntry.Instance = NewObject<ULyraInventoryItemInstance>(OwnerComponent->GetOwner());  //@TODO: Using the actor instead of component as the outer due to UE-127172
 	NewEntry.Instance->SetItemDef(ItemDef);
+	NewEntry.Instance->OwningInventory = Manager;
 	for (ULyraInventoryItemFragment* Fragment : GetDefault<ULyraInventoryItemDefinition>(ItemDef)->Fragments)
 	{
 		if (Fragment != nullptr)
@@ -107,9 +123,36 @@ ULyraInventoryItemInstance* FLyraInventoryList::AddEntry(TSubclassOf<ULyraInvent
 	return Result;
 }
 
-void FLyraInventoryList::AddEntry(ULyraInventoryItemInstance* Instance)
+ULyraInventoryItemInstance* FLyraInventoryList::AddEntry(const FLyraInventoryItemSnapshot& Snapshot)
 {
-	unimplemented();
+	check(Snapshot.IsValid() && OwnerComponent && OwnerComponent->GetOwner()->HasAuthority());
+	auto* Manager = CastChecked<ULyraInventoryManagerComponent>(OwnerComponent);
+	const int32 NewSlot = FindFirstFreeSlot();
+	if (Manager->GetSlotCapacity() > 0 && NewSlot >= Manager->GetSlotCapacity()) { return nullptr; }
+	FLyraInventoryEntry& Entry = Entries.AddDefaulted_GetRef();
+	Entry.EntryId = FGuid::NewGuid();
+	Entry.SlotIndex = NewSlot;
+	Entry.StackCount = Snapshot.StackCount;
+	Entry.Instance = NewObject<ULyraInventoryItemInstance>(OwnerComponent->GetOwner());
+	Entry.Instance->InitializeFromSnapshot(Snapshot);
+	Entry.Instance->OwningInventory = Manager;
+	MarkItemDirty(Entry);
+	return Entry.Instance;
+}
+
+int32 FLyraInventoryList::FindFirstFreeSlot() const
+{
+	TSet<int32> OccupiedSlots;
+	for (const FLyraInventoryEntry& Entry : Entries)
+	{
+		OccupiedSlots.Add(Entry.SlotIndex);
+	}
+	int32 Slot = 0;
+	while (OccupiedSlots.Contains(Slot))
+	{
+		++Slot;
+	}
+	return Slot;
 }
 
 void FLyraInventoryList::RemoveEntry(ULyraInventoryItemInstance* Instance)
@@ -119,6 +162,7 @@ void FLyraInventoryList::RemoveEntry(ULyraInventoryItemInstance* Instance)
 		FLyraInventoryEntry& Entry = *EntryIt;
 		if (Entry.Instance == Instance)
 		{
+			Instance->OwningInventory.Reset();
 			EntryIt.RemoveCurrent();
 			MarkArrayDirty();
 		}
@@ -154,46 +198,282 @@ void ULyraInventoryManagerComponent::GetLifetimeReplicatedProps(TArray< FLifetim
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, InventoryList);
+	DOREPLIFETIME(ThisClass, SlotCapacity);
 }
 
-bool ULyraInventoryManagerComponent::CanAddItemDefinition(TSubclassOf<ULyraInventoryItemDefinition> ItemDef, int32 StackCount)
+void ULyraInventoryManagerComponent::BeginPlay()
 {
-	//@TODO: Add support for stack limit / uniqueness checks / etc...
+	Super::BeginPlay();
+	if (const ALyraInventoryGameMode* Mode = GetWorld()->GetAuthGameMode<ALyraInventoryGameMode>())
+	{
+		ensureMsgf(ConfigureSlotCapacity(Mode->InventorySlotCapacity), TEXT("Invalid inventory scene capacity"));
+	}
+}
+
+void ULyraInventoryManagerComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (GetOwner() && GetOwner()->HasAuthority())
+	{
+		TGuardValue<bool> MutationGuard(bMutationInProgress, true);
+		for (auto* Item : GetAllItems()) { RemoveEntryAndReferences(Item); }
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+bool FLyraInventoryItemSnapshot::IsValid() const
+{
+	if (!ItemDef || StackCount <= 0) { return false; }
+	for (const auto& Pair : StatTags)
+	{
+		if (!Pair.Key.IsValid() || Pair.Value <= 0) { return false; }
+	}
 	return true;
 }
 
-ULyraInventoryItemInstance* ULyraInventoryManagerComponent::AddItemDefinition(TSubclassOf<ULyraInventoryItemDefinition> ItemDef, int32 StackCount)
+bool ULyraInventoryManagerComponent::ConfigureSlotCapacity(int32 NewCapacity)
 {
-	ULyraInventoryItemInstance* Result = nullptr;
-	if (ItemDef != nullptr)
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bMutationInProgress || NewCapacity < 0 || NewCapacity > 1024)
 	{
-		Result = InventoryList.AddEntry(ItemDef, StackCount);
-		
-		if (IsUsingRegisteredSubObjectList() && IsReadyForReplication() && Result)
+		return false;
+	}
+	for (const FLyraInventoryEntry& Entry : InventoryList.Entries)
+	{
+		if (NewCapacity > 0 && (Entry.SlotIndex >= NewCapacity || !IsValid(Entry.Instance)
+			|| !Entry.Instance->GetItemDef() || Entry.StackCount <= 0
+			|| Entry.StackCount > GetDefault<ULyraInventoryItemDefinition>(Entry.Instance->GetItemDef())->GetMaxStackSize()))
 		{
-			AddReplicatedSubObject(Result);
+			return false;
+		}
+	}
+	SlotCapacity = NewCapacity;
+	return true;
+}
+
+TArray<FLyraInventorySlotView> ULyraInventoryManagerComponent::GetSlotSnapshot() const
+{
+	int32 ViewSize = SlotCapacity;
+	for (const FLyraInventoryEntry& Entry : InventoryList.Entries)
+	{
+		ViewSize = FMath::Max(ViewSize, Entry.SlotIndex + 1);
+	}
+	TArray<FLyraInventorySlotView> Result;
+	Result.SetNum(ViewSize);
+	for (int32 Index = 0; Index < Result.Num(); ++Index)
+	{
+		Result[Index].SlotIndex = Index;
+	}
+	for (const FLyraInventoryEntry& Entry : InventoryList.Entries)
+	{
+		if (Result.IsValidIndex(Entry.SlotIndex))
+		{
+			FLyraInventorySlotView& Slot = Result[Entry.SlotIndex];
+			Slot.EntryId = Entry.EntryId;
+			Slot.Instance = Entry.Instance;
+			Slot.StackCount = Entry.StackCount;
 		}
 	}
 	return Result;
 }
 
+bool ULyraInventoryManagerComponent::CanAddItemDefinition(TSubclassOf<ULyraInventoryItemDefinition> ItemDef, int32 StackCount)
+{
+	return GetOwner() && GetOwner()->HasAuthority() && !bMutationInProgress && StackCount > 0
+		&& GetAddableItemCount(ItemDef, StackCount) == StackCount;
+}
+
+bool ULyraInventoryManagerComponent::CanMergeDefinition(const FLyraInventoryEntry& Entry,
+	TSubclassOf<ULyraInventoryItemDefinition> ItemDef) const
+{
+	return IsValid(Entry.Instance) && Entry.Instance->GetItemDef() == ItemDef && Entry.StackCount > 0
+		&& Entry.StackCount < GetDefault<ULyraInventoryItemDefinition>(ItemDef)->GetMaxStackSize()
+		&& Entry.Instance->HasDefaultStatTags();
+}
+
+int32 ULyraInventoryManagerComponent::GetAddableItemCount(TSubclassOf<ULyraInventoryItemDefinition> ItemDef,
+	int32 RequestedCount) const
+{
+	if (!ItemDef || RequestedCount <= 0) { return 0; }
+	if (SlotCapacity == 0) { return RequestedCount; }
+	const int32 Limit = GetDefault<ULyraInventoryItemDefinition>(ItemDef)->GetMaxStackSize();
+	int64 Space = int64(FMath::Max(0, SlotCapacity - InventoryList.Entries.Num())) * Limit;
+	for (const auto& Entry : InventoryList.Entries)
+	{
+		if (CanMergeDefinition(Entry, ItemDef))
+		{
+			Space += int64(Limit) - Entry.StackCount;
+		}
+	}
+	return int32(FMath::Min<int64>(RequestedCount, Space));
+}
+
+void ULyraInventoryManagerComponent::RegisterNewItem(ULyraInventoryItemInstance* Item)
+{
+	if (Item && IsUsingRegisteredSubObjectList() && IsReadyForReplication())
+	{
+		AddReplicatedSubObject(Item);
+	}
+}
+
+FLyraInventoryAddResult ULyraInventoryManagerComponent::AddItemDefinitionWithResult(
+	TSubclassOf<ULyraInventoryItemDefinition> ItemDef, int32 StackCount, bool bAllowPartial)
+{
+	FLyraInventoryAddResult Result;
+	Result.RemainingCount = FMath::Max(0, StackCount);
+	if (!GetOwner() || !GetOwner()->HasAuthority())
+	{
+		Result.Status = ELyraInventoryAddStatus::NotAuthority;
+		return Result;
+	}
+	if (bMutationInProgress)
+	{
+		Result.Status = ELyraInventoryAddStatus::Busy;
+		return Result;
+	}
+	if (!ItemDef || StackCount <= 0) { return Result; }
+	const int32 Accepted = GetAddableItemCount(ItemDef, StackCount);
+	if (Accepted == 0 || (!bAllowPartial && Accepted != StackCount))
+	{
+		Result.Status = ELyraInventoryAddStatus::NoSpace;
+		return Result;
+	}
+	// Fragment initialization cannot re-enter a transaction and invalidate preflight capacity.
+	TGuardValue<bool> MutationGuard(bMutationInProgress, true);
+	if (SlotCapacity == 0)
+	{
+		// Preserve the original mode's single-entry insertion behavior.
+		Result.FirstInstance = InventoryList.AddEntry(ItemDef, Accepted);
+		RegisterNewItem(Result.FirstInstance);
+	}
+	else
+	{
+		const int32 Limit = GetDefault<ULyraInventoryItemDefinition>(ItemDef)->GetMaxStackSize();
+		int32 Remaining = Accepted;
+		for (auto& Entry : InventoryList.Entries)
+		{
+			if (Remaining > 0 && CanMergeDefinition(Entry, ItemDef))
+			{
+				const int32 Added = FMath::Min(Remaining, Limit - Entry.StackCount);
+				Entry.StackCount += Added;
+				Remaining -= Added;
+				InventoryList.MarkItemDirty(Entry);
+				if (!Result.FirstInstance) { Result.FirstInstance = Entry.Instance; }
+			}
+		}
+		while (Remaining > 0)
+		{
+			const int32 Added = FMath::Min(Remaining, Limit);
+			auto* Item = InventoryList.AddEntry(ItemDef, Added);
+			check(Item); // Preflight and the mutation guard guarantee a free slot.
+			RegisterNewItem(Item);
+			if (!Result.FirstInstance) { Result.FirstInstance = Item; }
+			Remaining -= Added;
+		}
+	}
+	Result.AddedCount = Accepted;
+	Result.RemainingCount = StackCount - Accepted;
+	Result.Status = Result.RemainingCount == 0 ? ELyraInventoryAddStatus::Success : ELyraInventoryAddStatus::Partial;
+	return Result;
+}
+
+ULyraInventoryItemInstance* ULyraInventoryManagerComponent::AddItemDefinition(TSubclassOf<ULyraInventoryItemDefinition> ItemDef, int32 StackCount)
+{
+	return AddItemDefinitionWithResult(ItemDef, StackCount, false).FirstInstance;
+}
+
 void ULyraInventoryManagerComponent::AddItemInstance(ULyraInventoryItemInstance* ItemInstance)
 {
-	InventoryList.AddEntry(ItemInstance);
-	if (IsUsingRegisteredSubObjectList() && IsReadyForReplication() && ItemInstance)
+	// Legacy pointer API transfers a tracked source through value data; never adopts a foreign Outer.
+	// Unowned/stale pointers are rejected. World pickups will use server-owned snapshots.
+	if (IsValid(ItemInstance))
 	{
-		AddReplicatedSubObject(ItemInstance);
+		if (auto* Source = ItemInstance->OwningInventory.Get())
+		{
+			Source->TransferItemToInventory(ItemInstance, this);
+		}
 	}
+}
+
+bool ULyraInventoryManagerComponent::ContainsItem(const ULyraInventoryItemInstance* ItemInstance) const
+{
+	return IsValid(ItemInstance) && InventoryList.Entries.ContainsByPredicate(
+		[ItemInstance](const FLyraInventoryEntry& Entry) { return Entry.Instance == ItemInstance && Entry.StackCount > 0; });
+}
+
+bool ULyraInventoryManagerComponent::CaptureItemSnapshot(ULyraInventoryItemInstance* ItemInstance,
+	FLyraInventoryItemSnapshot& OutSnapshot) const
+{
+	OutSnapshot = FLyraInventoryItemSnapshot();
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bMutationInProgress || !ContainsItem(ItemInstance)) { return false; }
+	for (const auto& Entry : InventoryList.Entries)
+	{
+		if (Entry.Instance == ItemInstance)
+		{
+			OutSnapshot.ItemDef = ItemInstance->GetItemDef();
+			OutSnapshot.StackCount = Entry.StackCount;
+			OutSnapshot.StatTags = ItemInstance->StatTags.GetTagCounts();
+			return OutSnapshot.IsValid();
+		}
+	}
+	return false;
+}
+
+bool ULyraInventoryManagerComponent::CanRestoreSnapshot(const FLyraInventoryItemSnapshot& Snapshot) const
+{
+	return GetOwner() && GetOwner()->HasAuthority() && !GetOwner()->IsActorBeingDestroyed()
+		&& !bMutationInProgress && Snapshot.IsValid()
+		&& (SlotCapacity == 0 || (Snapshot.StackCount <= GetDefault<ULyraInventoryItemDefinition>(Snapshot.ItemDef)->GetMaxStackSize()
+			&& InventoryList.FindFirstFreeSlot() < SlotCapacity));
+}
+
+ULyraInventoryItemInstance* ULyraInventoryManagerComponent::RestoreItemSnapshot(const FLyraInventoryItemSnapshot& Snapshot)
+{
+	if (!CanRestoreSnapshot(Snapshot)) { return nullptr; }
+	TGuardValue<bool> MutationGuard(bMutationInProgress, true);
+	auto* Item = InventoryList.AddEntry(Snapshot);
+	RegisterNewItem(Item);
+	return Item;
+}
+
+ULyraInventoryItemInstance* ULyraInventoryManagerComponent::TransferItemToInventory(
+	ULyraInventoryItemInstance* ItemInstance, ULyraInventoryManagerComponent* TargetInventory)
+{
+	FLyraInventoryItemSnapshot Snapshot;
+	if (!IsValid(TargetInventory) || TargetInventory == this || TargetInventory->GetWorld() != GetWorld()
+		|| !CaptureItemSnapshot(ItemInstance, Snapshot) || !TargetInventory->CanRestoreSnapshot(Snapshot)) { return nullptr; }
+	TGuardValue<bool> SourceGuard(bMutationInProgress, true);
+	TGuardValue<bool> TargetGuard(TargetInventory->bMutationInProgress, true);
+	auto* NewItem = TargetInventory->InventoryList.AddEntry(Snapshot);
+	if (!NewItem) { return nullptr; }
+	TargetInventory->RegisterNewItem(NewItem);
+	RemoveEntryAndReferences(ItemInstance);
+	return NewItem;
+}
+
+void ULyraInventoryManagerComponent::RemoveEntryAndReferences(ULyraInventoryItemInstance* Item)
+{
+	if (!IsValid(Item) || !InventoryList.Entries.ContainsByPredicate(
+		[Item](const FLyraInventoryEntry& Entry) { return Entry.Instance == Item; })) { return; }
+	TInlineComponentArray<ULyraQuickBarComponent*> QuickBars;
+	GetOwner()->GetComponents(QuickBars);
+	for (auto* QuickBar : QuickBars) { QuickBar->RemoveItemReferences(Item); }
+	APawn* Pawn = Cast<APawn>(GetOwner());
+	if (const auto* Controller = Cast<AController>(GetOwner())) { Pawn = Controller->GetPawn(); }
+	if (auto* Equipment = Pawn ? Pawn->FindComponentByClass<ULyraEquipmentManagerComponent>() : nullptr)
+	{
+		for (auto* Instance : Equipment->GetEquipmentInstancesOfType(ULyraEquipmentInstance::StaticClass()))
+		{
+			if (Instance->GetInstigator() == Item) { Equipment->UnequipItem(Instance); }
+		}
+	}
+	InventoryList.RemoveEntry(Item);
+	if (IsUsingRegisteredSubObjectList()) { RemoveReplicatedSubObject(Item); }
 }
 
 void ULyraInventoryManagerComponent::RemoveItemInstance(ULyraInventoryItemInstance* ItemInstance)
 {
-	InventoryList.RemoveEntry(ItemInstance);
-
-	if (ItemInstance && IsUsingRegisteredSubObjectList())
-	{
-		RemoveReplicatedSubObject(ItemInstance);
-	}
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bMutationInProgress) { return; }
+	TGuardValue<bool> MutationGuard(bMutationInProgress, true);
+	RemoveEntryAndReferences(ItemInstance);
 }
 
 TArray<ULyraInventoryItemInstance*> ULyraInventoryManagerComponent::GetAllItems() const
@@ -221,7 +501,8 @@ ULyraInventoryItemInstance* ULyraInventoryManagerComponent::FindFirstItemStackBy
 
 int32 ULyraInventoryManagerComponent::GetTotalItemCountByDefinition(TSubclassOf<ULyraInventoryItemDefinition> ItemDef) const
 {
-	int32 TotalCount = 0;
+	if (!ItemDef) { return 0; }
+	int64 TotalCount = 0;
 	for (const FLyraInventoryEntry& Entry : InventoryList.Entries)
 	{
 		ULyraInventoryItemInstance* Instance = Entry.Instance;
@@ -230,38 +511,50 @@ int32 ULyraInventoryManagerComponent::GetTotalItemCountByDefinition(TSubclassOf<
 		{
 			if (Instance->GetItemDef() == ItemDef)
 			{
-				++TotalCount;
+				TotalCount += FMath::Max(0, Entry.StackCount);
 			}
 		}
 	}
 
-	return TotalCount;
+	return int32(FMath::Min<int64>(TotalCount, MAX_int32));
 }
 
 bool ULyraInventoryManagerComponent::ConsumeItemsByDefinition(TSubclassOf<ULyraInventoryItemDefinition> ItemDef, int32 NumToConsume)
 {
 	AActor* OwningActor = GetOwner();
-	if (!OwningActor || !OwningActor->HasAuthority())
+	if (!OwningActor || !OwningActor->HasAuthority() || bMutationInProgress || !ItemDef || NumToConsume <= 0
+		|| GetTotalItemCountByDefinition(ItemDef) < NumToConsume)
 	{
 		return false;
 	}
 
-	//@TODO: N squared right now as there's no acceleration structure
-	int32 TotalConsumed = 0;
-	while (TotalConsumed < NumToConsume)
+	TGuardValue<bool> MutationGuard(bMutationInProgress, true);
+	int32 Remaining = NumToConsume;
+	for (int32 Index = 0; Index < InventoryList.Entries.Num() && Remaining > 0;)
 	{
-		if (ULyraInventoryItemInstance* Instance = ULyraInventoryManagerComponent::FindFirstItemStackByDefinition(ItemDef))
+		auto& Entry = InventoryList.Entries[Index];
+		if (!IsValid(Entry.Instance) || Entry.Instance->GetItemDef() != ItemDef || Entry.StackCount <= 0)
 		{
-			InventoryList.RemoveEntry(Instance);
-			++TotalConsumed;
+			++Index;
+			continue;
+		}
+		const int32 Consumed = FMath::Min(Remaining, Entry.StackCount);
+		Entry.StackCount -= Consumed;
+		Remaining -= Consumed;
+		if (Entry.StackCount == 0)
+		{
+			auto* Item = Entry.Instance.Get();
+			RemoveEntryAndReferences(Item);
 		}
 		else
 		{
-			return false;
+			InventoryList.MarkItemDirty(Entry);
+			++Index;
 		}
 	}
 
-	return TotalConsumed == NumToConsume;
+	check(Remaining == 0);
+	return true;
 }
 
 void ULyraInventoryManagerComponent::ReadyForReplication()

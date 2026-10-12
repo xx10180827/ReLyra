@@ -1,11 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LyraInventoryItemDefinition.h"
-
+#include "InventoryFragment_EquippableItem.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraInventoryItemDefinition)
+
+ELyraInventoryItemType ULyraInventoryItemDefinition::GetInventoryItemType() const
+{
+	return FindFragmentByClass(UInventoryFragment_EquippableItem::StaticClass())
+		? ELyraInventoryItemType::Weapon : ItemType;
+}
+
+int32 ULyraInventoryItemDefinition::GetMaxStackSize() const
+{
+	return GetInventoryItemType() == ELyraInventoryItemType::Weapon ? 1 : FMath::Max(1, MaxStackSize);
+}
 
 //////////////////////////////////////////////////////////////////////
 // ULyraInventoryItemDefinition

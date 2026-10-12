@@ -51,9 +51,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly)
 	ULyraInventoryItemInstance* RemoveItemFromSlot(int32 SlotIndex);
 
+	// Inventory removal clears every occurrence, including the active equipment reference.
+	void RemoveItemReferences(ULyraInventoryItemInstance* Item);
+
 	virtual void BeginPlay() override;
 
 private:
+	bool bChangingSlots = false;
 	void UnequipItemInSlot();
 	void EquipItemInSlot();
 

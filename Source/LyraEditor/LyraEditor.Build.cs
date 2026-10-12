@@ -49,7 +49,8 @@ public class LyraEditor : ModuleRules
 				"DeveloperToolSettings",
 				"CollectionManager",
 				"SourceControl",
-				"Chaos"
+				"Chaos",
+				"AssetRegistry"
 			}
         );
 

@@ -9,7 +9,17 @@
 template <typename T> class TSubclassOf;
 
 class ULyraInventoryItemInstance;
+class UTexture2D;
 struct FFrame;
+
+UENUM(BlueprintType)
+enum class ELyraInventoryItemType : uint8
+{
+	Miscellaneous,
+	Weapon,
+	Ammunition,
+	Consumable
+};
 
 //////////////////////////////////////////////////////////////////////
 
@@ -38,6 +48,25 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Display)
 	FText DisplayName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Display, meta=(MultiLine=true))
+	FText Description;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Display)
+	TSoftObjectPtr<UTexture2D> InventoryIcon;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Inventory)
+	ELyraInventoryItemType ItemType = ELyraInventoryItemType::Miscellaneous;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Inventory, meta=(ClampMin="1"))
+	int32 MaxStackSize = 1;
+
+	// Existing equippable definitions remain weapons without rewriting their assets.
+	UFUNCTION(BlueprintPure, Category=Inventory)
+	ELyraInventoryItemType GetInventoryItemType() const;
+
+	UFUNCTION(BlueprintPure, Category=Inventory)
+	int32 GetMaxStackSize() const;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Display, Instanced)
 	TArray<TObjectPtr<ULyraInventoryItemFragment>> Fragments;

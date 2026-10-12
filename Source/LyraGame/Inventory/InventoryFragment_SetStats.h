@@ -24,4 +24,5 @@ public:
 	virtual void OnInstanceCreated(ULyraInventoryItemInstance* Instance) const override;
 
 	int32 GetItemStatByTag(FGameplayTag Tag) const;
+	const TMap<FGameplayTag, int32>& GetInitialItemStats() const { return InitialItemStats; }
 };

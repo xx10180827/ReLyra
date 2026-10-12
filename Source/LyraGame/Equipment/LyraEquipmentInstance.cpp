@@ -111,6 +111,7 @@ void ULyraEquipmentInstance::DestroyEquipmentActors()
 			Actor->Destroy();
 		}
 	}
+	SpawnedActors.Reset();
 }
 
 void ULyraEquipmentInstance::OnEquipped()

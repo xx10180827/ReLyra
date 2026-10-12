@@ -149,6 +149,7 @@ public:
 	}
 
 private:
+	bool bUnequipping = false;
 	UPROPERTY(Replicated)
 	FLyraEquipmentList EquipmentList;
 };

@@ -69,6 +69,8 @@ public:
 		return TagToCountMap.Contains(Tag);
 	}
 
+	const TMap<FGameplayTag, int32>& GetTagCounts() const { return TagToCountMap; }
+
 	//~FFastArraySerializer contract
 	void PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize);
 	void PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize);

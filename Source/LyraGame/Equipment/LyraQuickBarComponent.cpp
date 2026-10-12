@@ -8,6 +8,8 @@
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "GameFramework/Pawn.h"
 #include "Inventory/InventoryFragment_EquippableItem.h"
+#include "Inventory/LyraInventoryManagerComponent.h"
+#include "Templates/UnrealTemplate.h"
 #include "NativeGameplayTags.h"
 #include "Net/UnrealNetwork.h"
 
@@ -110,13 +112,17 @@ void ULyraQuickBarComponent::EquipItemInSlot()
 
 void ULyraQuickBarComponent::UnequipItemInSlot()
 {
-	if (ULyraEquipmentManagerComponent* EquipmentManager = FindEquipmentManager())
+	ULyraEquipmentInstance* Previous = EquippedItem;
+	EquippedItem = nullptr;
+	// The controller may already possess another pawn. Clean up the actual equipment owner.
+	if (IsValid(Previous))
 	{
-		if (EquippedItem != nullptr)
+		APawn* PreviousPawn = Previous->GetPawn();
+		if (auto* EquipmentManager = PreviousPawn ? PreviousPawn->FindComponentByClass<ULyraEquipmentManagerComponent>() : nullptr)
 		{
-			EquipmentManager->UnequipItem(EquippedItem);
-			EquippedItem = nullptr;
+			EquipmentManager->UnequipItem(Previous);
 		}
+		Previous->SetInstigator(nullptr);
 	}
 }
 
@@ -134,6 +140,12 @@ ULyraEquipmentManagerComponent* ULyraQuickBarComponent::FindEquipmentManager() c
 
 void ULyraQuickBarComponent::SetActiveSlotIndex_Implementation(int32 NewIndex)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots) { return; }
+	if (const auto* Inventory = GetOwner()->FindComponentByClass<ULyraInventoryManagerComponent>())
+	{
+		if (Slots.IsValidIndex(NewIndex) && Slots[NewIndex] && !Inventory->CanReferenceItem(Slots[NewIndex])) { return; }
+	}
+	TGuardValue<bool> Guard(bChangingSlots, true);
 	if (Slots.IsValidIndex(NewIndex) && (ActiveSlotIndex != NewIndex))
 	{
 		UnequipItemInSlot();
@@ -168,6 +180,12 @@ int32 ULyraQuickBarComponent::GetNextFreeItemSlot() const
 
 void ULyraQuickBarComponent::AddItemToSlot(int32 SlotIndex, ULyraInventoryItemInstance* Item)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots || !IsValid(Item)) { return; }
+	if (const auto* Inventory = GetOwner()->FindComponentByClass<ULyraInventoryManagerComponent>())
+	{
+		if (!Inventory->CanReferenceItem(Item)) { return; }
+	}
+	TGuardValue<bool> Guard(bChangingSlots, true);
 	if (Slots.IsValidIndex(SlotIndex) && (Item != nullptr))
 	{
 		if (Slots[SlotIndex] == nullptr)
@@ -180,12 +198,15 @@ void ULyraQuickBarComponent::AddItemToSlot(int32 SlotIndex, ULyraInventoryItemIn
 
 ULyraInventoryItemInstance* ULyraQuickBarComponent::RemoveItemFromSlot(int32 SlotIndex)
 {
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots || !Slots.IsValidIndex(SlotIndex)) { return nullptr; }
+	TGuardValue<bool> Guard(bChangingSlots, true);
 	ULyraInventoryItemInstance* Result = nullptr;
 
 	if (ActiveSlotIndex == SlotIndex)
 	{
 		UnequipItemInSlot();
 		ActiveSlotIndex = -1;
+		OnRep_ActiveSlotIndex();
 	}
 
 	if (Slots.IsValidIndex(SlotIndex))
@@ -202,8 +223,27 @@ ULyraInventoryItemInstance* ULyraQuickBarComponent::RemoveItemFromSlot(int32 Slo
 	return Result;
 }
 
+void ULyraQuickBarComponent::RemoveItemReferences(ULyraInventoryItemInstance* Item)
+{
+	if (!IsValid(Item) || !GetOwner() || !GetOwner()->HasAuthority()) { return; }
+	// Inventory cleanup must also work if an unequip/message callback removes an item.
+	// Clear references before invoking callbacks; do not skip cleanup while slots are changing.
+	TGuardValue<bool> Guard(bChangingSlots, true);
+	const bool bWasActive = GetActiveSlotItem() == Item;
+	bool bChanged = false;
+	for (auto& Slot : Slots)
+	{
+		if (Slot == Item) { Slot = nullptr; bChanged = true; }
+	}
+	if (bWasActive) { ActiveSlotIndex = INDEX_NONE; }
+	if (bWasActive || (EquippedItem && EquippedItem->GetInstigator() == Item)) { UnequipItemInSlot(); }
+	if (bChanged) { OnRep_Slots(); }
+	if (bWasActive) { OnRep_ActiveSlotIndex(); }
+}
+
 void ULyraQuickBarComponent::OnRep_Slots()
 {
+	if (!UGameplayMessageSubsystem::HasInstance(this)) { return; }
 	FLyraQuickBarSlotsChangedMessage Message;
 	Message.Owner = GetOwner();
 	Message.Slots = Slots;
@@ -214,6 +254,7 @@ void ULyraQuickBarComponent::OnRep_Slots()
 
 void ULyraQuickBarComponent::OnRep_ActiveSlotIndex()
 {
+	if (!UGameplayMessageSubsystem::HasInstance(this)) { return; }
 	FLyraQuickBarActiveIndexChangedMessage Message;
 	Message.Owner = GetOwner();
 	Message.ActiveIndex = ActiveSlotIndex;

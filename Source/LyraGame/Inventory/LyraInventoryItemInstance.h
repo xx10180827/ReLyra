@@ -11,6 +11,8 @@ class FLifetimeProperty;
 
 class ULyraInventoryItemDefinition;
 class ULyraInventoryItemFragment;
+class ULyraInventoryManagerComponent;
+struct FLyraInventoryItemSnapshot;
 struct FFrame;
 struct FGameplayTag;
 
@@ -45,6 +47,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Inventory)
 	bool HasStatTag(FGameplayTag Tag) const;
 
+	// A definition pickup creates default state; never merge it into a modified instance.
+	bool HasDefaultStatTags() const;
+
 	TSubclassOf<ULyraInventoryItemDefinition> GetItemDef() const
 	{
 		return ItemDef;
@@ -66,8 +71,13 @@ private:
 #endif // UE_WITH_IRIS
 
 	void SetItemDef(TSubclassOf<ULyraInventoryItemDefinition> InDef);
+	void InitializeFromSnapshot(const FLyraInventoryItemSnapshot& Snapshot);
 
 	friend struct FLyraInventoryList;
+	friend class ULyraInventoryManagerComponent;
+
+	// Authority-only membership; a removed object's stale pointer cannot be transferred twice.
+	TWeakObjectPtr<ULyraInventoryManagerComponent> OwningInventory;
 
 private:
 	UPROPERTY(Replicated)
