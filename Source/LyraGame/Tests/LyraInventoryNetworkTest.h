@@ -20,6 +20,12 @@ private:
 	bool TickInventoryOperations(bool bHost);
 	bool TickInventoryUI(bool bHost);
 	bool TickInventoryPickup(bool bHost);
+	bool TickInventoryDrop(bool bHost);
+	bool bVerifyDrop = false;
+	bool bDropVerified = false;
+	int32 DropStep = 0;
+	int32 DropUIPhase = 0;
+	double DropUIAt = 0;
 	bool bVerifyPickup = false;
 	bool bPickupVerified = false;
 	int32 PickupStep = 0;

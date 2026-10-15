@@ -21,6 +21,7 @@ public:
 	void SelectSlot(int32 Index);
 	void DropOnSlot(int32 Source, FGuid Entry, int32 Count, int32 Target, bool bSplit);
 	void ConfirmQuantity();
+	void BeginDrop();
 	void CancelQuantity();
 	bool IsRequestPending() const { return bRequestPending; }
 	bool IsQuantityOpen() const { return bQuantityOpen; }

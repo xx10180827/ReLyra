@@ -6,6 +6,7 @@ param(
     [switch]$InventoryOperations,
     [switch]$InventoryUI,
     [switch]$InventoryPickup,
+    [switch]$InventoryDrop,
     [ValidateRange(1024, 65535)]
     [int]$Port = 17777,
     [ValidateRange(30, 900)]
@@ -13,6 +14,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($InventoryDrop) {
+    if ($InventoryPickup -or $InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules) { throw 'Run drop scenarios separately from other fixtures.' }
+    $Render = $true
+}
 if ($InventoryPickup) {
     if ($InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules) { throw 'Run pickup scenarios separately from inventory arrangement fixtures.' }
     $Render = $true
@@ -55,6 +60,7 @@ if ($InventorySnapshots) { $commonArguments += '-InventoryTestSnapshots' }
 if ($InventoryOperations) { $commonArguments += '-InventoryTestOperations' }
 if ($InventoryUI) { $commonArguments += '-InventoryTestUI' }
 if ($InventoryPickup) { $commonArguments += '-InventoryTestPickup' }
+if ($InventoryDrop) { $commonArguments += '-InventoryTestDrop' }
 
 function Read-TestLog([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
@@ -117,7 +123,14 @@ try {
     $inventoryPickupPassed = (-not $InventoryPickup) -or (
         (Read-TestLog $hostLog).Contains('INVENTORY_PICKUP PASS role=Host ' + $pickupSummary) -and
         (Read-TestLog $clientLog).Contains('INVENTORY_PICKUP PASS role=Client ' + $pickupSummary))
+    $dropSummary = 'ui=confirmed bothDirections=passed ammoTotal=8 weapon=5/19 references=cleared nearbyShotguns=3 ownedShotguns=4'
+    $inventoryDropPassed = (-not $InventoryDrop) -or (
+        (Read-TestLog $hostLog).Contains('INVENTORY_DROP PASS role=Host ' + $dropSummary) -and
+        (Read-TestLog $clientLog).Contains('INVENTORY_DROP PASS role=Client ' + $dropSummary))
     $report = [ordered]@{
+        userAccepted = $false
+        inventoryDropChecked = [bool]$InventoryDrop
+        inventoryDropPassed = $inventoryDropPassed
         hostExitCode = $hostProcess.ExitCode
         clientExitCode = $clientProcess.ExitCode
         hostPassed = $hostPassed
@@ -144,7 +157,7 @@ try {
         clientLog = $clientLog
     }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runDirectory 'Result.json') -Encoding utf8
-    if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
+    if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or -not $inventoryDropPassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
         throw "Network smoke test failed. See $runDirectory"
     }
     Write-Output "PASS: two network players and required components initialized. Report: $runDirectory"
@@ -153,6 +166,7 @@ try {
     if ($InventoryOperations) { Write-Output 'PASS: client RPC move/swap/split/merge, three rejected requests and replicated inventory matched.' }
     if ($InventoryUI) { Write-Output 'PASS: both inventory screens matched their owner, refreshed operations, reopened and released input/listeners.' }
     if ($InventoryPickup) { Write-Output 'PASS: E-key pickup, five replicated stations, partial/full inventory, stale/distant/replayed requests and two-player competition conserved quantity.' }
+    if ($InventoryDrop) { Write-Output 'PASS: both players dropped through inventory UI, exchanged exact quantities and preserved weapon state across the network.' }
 }
 catch {
     $reportPath = Join-Path $runDirectory 'Result.json'

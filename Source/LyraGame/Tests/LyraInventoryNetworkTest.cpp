@@ -36,6 +36,7 @@ void ULyraInventoryNetworkTest::OnInit()
 	bVerifyOperations = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestOperations"));
 	bVerifyUI = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestUI"));
 	bVerifyPickup = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestPickup"));
+	bVerifyDrop = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestDrop"));
 	if (bVerifyUI) { bVerifyOperations = true; }
 	if (bVerifyOperations) { bVerifyRules = bVerifySnapshots = true; }
 	if (ExpectedRole != TEXT("Host") && ExpectedRole != TEXT("Client"))
@@ -303,6 +304,7 @@ void ULyraInventoryNetworkTest::OnTick(float TimeDelta)
 	}
 	if (bVerifyUI && !bUIVerified && !TickInventoryUI(bHost)) { ReadyAt = 0.0; return; }
 	if (bVerifyPickup && !bPickupVerified && !TickInventoryPickup(bHost)) { ReadyAt = 0.0; return; }
+	if (bVerifyDrop && !bDropVerified && !TickInventoryDrop(bHost)) { ReadyAt = 0.0; return; }
 	if (ReadyAt == 0.0)
 	{
 		ReadyAt = Now;

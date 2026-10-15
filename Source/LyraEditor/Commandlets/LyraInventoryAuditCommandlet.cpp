@@ -17,6 +17,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/Parse.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UnrealType.h"
 
@@ -67,6 +68,13 @@ namespace LyraInventoryAudit
 				Report += FString::Printf(TEXT("  NODE %s: %s\n"), *Node->GetName(), *Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString());
 				for (const UEdGraphPin* Pin : Node->Pins)
 				{
+					for (const UEdGraphPin* Linked : Pin->LinkedTo)
+					{
+						if (Pin->Direction == EGPD_Output)
+						{
+							Report += FString::Printf(TEXT("    LINK %s -> %s.%s\n"), *Pin->PinName.ToString(), *Linked->GetOwningNode()->GetName(), *Linked->PinName.ToString());
+						}
+					}
 					if (!Pin->DefaultValue.IsEmpty() || Pin->DefaultObject)
 					{
 						Report += FString::Printf(TEXT("    %s = %s %s\n"), *Pin->PinName.ToString(), *Pin->DefaultValue, *GetPathNameSafe(Pin->DefaultObject));
@@ -88,7 +96,7 @@ ULyraInventoryAuditCommandlet::ULyraInventoryAuditCommandlet(const FObjectInitia
 
 int32 ULyraInventoryAuditCommandlet::Main(const FString& Params)
 {
-	const TArray<FString> AssetPaths = {
+	TArray<FString> AssetPaths = {
 		TEXT("/Game/B_LyraGameMode"),
 		TEXT("/ShooterCore/ShooterCore"),
 		TEXT("/ShooterExplorer/ShooterExplorer"),
@@ -112,6 +120,9 @@ int32 ULyraInventoryAuditCommandlet::Main(const FString& Params)
 		TEXT("/Game/WeaponSystem/Maps/L_WS_WeaponTest")
 	};
 
+	FString FocusedAsset;
+	const bool bFocused = FParse::Value(*Params, TEXT("Asset="), FocusedAsset);
+	if (bFocused) { AssetPaths = {FocusedAsset}; }
 	FString Report(TEXT("Lyra inventory and multiplayer asset audit (read-only)\n"));
 	int32 Failures = 0;
 	for (const FString& Path : AssetPaths)
@@ -187,7 +198,7 @@ int32 ULyraInventoryAuditCommandlet::Main(const FString& Params)
 		}
 	}
 
-	const FString ReportPath = FPaths::ProjectSavedDir() / TEXT("InventoryMultiplayer/AssetAudit.txt");
+	const FString ReportPath = FPaths::ProjectSavedDir() / (bFocused ? TEXT("InventoryMultiplayer/FocusedAssetAudit.txt") : TEXT("InventoryMultiplayer/AssetAudit.txt"));
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(ReportPath), true);
 	if (!FFileHelper::SaveStringToFile(Report, *ReportPath, FFileHelper::EEncodingOptions::ForceUTF8WithoutBOM))
 	{

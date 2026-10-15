@@ -9,6 +9,9 @@
 #include "Character/LyraHealthComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
+#include "Inventory/LyraInventoryItemInstance.h"
+#include "Equipment/LyraQuickBarComponent.h"
+#include "EngineUtils.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 namespace LyraPickupTest
@@ -38,6 +41,28 @@ namespace LyraPickupTest
 		ALyraWorldPickup* Pickup(int32 Count = 13)
 		{
 			auto* Item = World->SpawnActor<ALyraWorldPickup>(FVector(100,0,100), FRotator::ZeroRotator); Item->Initialize(Def, Count); return Item;
+		}
+		UBoxComponent* Floor()
+		{
+			auto* Actor = World->SpawnActor<AActor>();
+			auto* Box = NewObject<UBoxComponent>(Actor); Actor->SetRootComponent(Box);
+			Box->SetMobility(EComponentMobility::Static); Box->SetBoxExtent(FVector(1000,1000,10));
+			Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly); Box->SetCollisionResponseToAllChannels(ECR_Block); Box->RegisterComponent();
+			return Box;
+		}
+		FLyraInventoryOperationRequest DropRequest(int32 Count, int64 Sequence = 1)
+		{
+			const auto Slot = Inventory->GetSlotSnapshot()[0];
+			FLyraInventoryOperationRequest Request; Request.Operation = ELyraInventoryOperation::Drop;
+			Request.RequestId = Sequence; Request.SourceSlot = Request.TargetSlot = 0;
+			Request.SourceEntryId = Request.TargetEntryId = Slot.EntryId;
+			Request.ExpectedSourceCount = Request.ExpectedTargetCount = Slot.StackCount; Request.Quantity = Count;
+			return Request;
+		}
+		ALyraWorldPickup* Dropped()
+		{
+			for (TActorIterator<ALyraWorldPickup> It(World); It; ++It) { if (!It->IsActorBeingDestroyed()) { return *It; } }
+			return nullptr;
 		}
 		~FFixture() { World->DestroyWorld(false); }
 	};
@@ -119,6 +144,154 @@ bool FLyraPickupSequenceTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("Rejected sequence cannot be reused"), F.PC->GetLastPickupResult().Status == Status::Stale);
 	F.PC->ServerRequestPickup_Implementation(Item, Current.Id, Current.Revision, 3);
 	TestTrue(TEXT("Fresh valid request claims exact remainder"), F.PC->GetLastPickupResult().Added == 3 && F.Inventory->GetTotalItemCountByDefinition(F.Def) == 8);
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLyraDropQuantityTest, "Lyra.Inventory.Drop.QuantityAndCompetition", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+bool FLyraDropQuantityTest::RunTest(const FString& Parameters)
+{
+	using namespace LyraPickupTest;
+	FFixture F; F.Floor(); F.Inventory->AddItemDefinition(F.Def, 10);
+	const auto Request = F.DropRequest(7);
+	bool ReentryBlocked = false;
+	const auto Handle = F.Inventory->OnInventoryChanged.AddLambda([&]
+	{
+		auto* Ground = F.Dropped();
+		if (Ground) { const auto S = Ground->GetPickupState(); ReentryBlocked = Ground->TryPickup(F.PC, S.Id, S.Revision).Status == Status::Busy; }
+	});
+	TestTrue(TEXT("Exact drop succeeds"), F.Inventory->ExecuteInventoryOperation(Request).Status == ELyraInventoryOperationStatus::Success);
+	F.Inventory->OnInventoryChanged.Remove(Handle);
+	TestTrue(TEXT("New source unavailable during inventory commit"), ReentryBlocked);
+	TestEqual(TEXT("Source retains three"), F.Inventory->GetTotalItemCountByDefinition(F.Def), 3);
+	TestTrue(TEXT("Replay rejected"), F.Inventory->ExecuteInventoryOperation(Request).Status == ELyraInventoryOperationStatus::StaleRequest);
+	auto* Ground = F.Dropped(); if (!TestNotNull(TEXT("Ground generated"), Ground)) { return false; }
+	auto* Other = F.Player(2); auto* Inv = Other->FindComponentByClass<ULyraInventoryManagerComponent>();
+	Inv->AddItemDefinition(F.Def, 17);
+	const auto Token = Ground->GetPickupState();
+	TestEqual(TEXT("Other player admits only available three"), Ground->TryPickup(Other, Token.Id, Token.Revision).Added, 3);
+	const auto Updated = Ground->GetPickupState();
+	TestEqual(TEXT("Four remain on ground"), Updated.Count, 4);
+	TestTrue(TEXT("Full inventory cannot consume source"), Ground->TryPickup(Other, Updated.Id, Updated.Revision).Status == Status::NoSpace);
+	TestEqual(TEXT("Stale competitor receives nothing"), Ground->TryPickup(F.PC, Token.Id, Token.Revision).Added, 0);
+	TestEqual(TEXT("Original owner claims remaining four"), Ground->TryPickup(F.PC, Updated.Id, Updated.Revision).Added, 4);
+	TestEqual(TEXT("Exhausted source cannot be claimed twice"), Ground->TryPickup(Other, Updated.Id, Updated.Revision).Added, 0);
+	TestEqual(TEXT("Total conserved across inventories and world"), F.Inventory->GetTotalItemCountByDefinition(F.Def) + Inv->GetTotalItemCountByDefinition(F.Def), 27);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLyraDropFailureTest, "Lyra.Inventory.Drop.FailureRollback", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+bool FLyraDropFailureTest::RunTest(const FString& Parameters)
+{
+	using namespace LyraPickupTest;
+	using OpStatus = ELyraInventoryOperationStatus;
+	FFixture F; auto* Item = F.Inventory->AddItemDefinition(F.Def, 5);
+	auto* Quick = NewObject<ULyraQuickBarComponent>(F.PC); Quick->RegisterComponent(); Quick->RegisterAllComponentTickFunctions(true); Quick->BeginPlay(); Quick->AddItemToSlot(0, Item);
+	int64 Id = 0;
+	const auto Run = [&](int32 Quantity) { return F.Inventory->ExecuteInventoryOperation(F.DropRequest(Quantity, ++Id)).Status; };
+	TestTrue(TEXT("Zero quantity"), Run(0) == OpStatus::InvalidQuantity);
+	TestTrue(TEXT("Negative quantity"), Run(-1) == OpStatus::InvalidQuantity);
+	TestTrue(TEXT("Excess quantity"), Run(6) == OpStatus::InvalidQuantity);
+	auto Forged = F.DropRequest(2, ++Id); Forged.SourceEntryId = FGuid::NewGuid();
+	TestTrue(TEXT("Foreign identity"), F.Inventory->ExecuteInventoryOperation(Forged).Status == OpStatus::StaleState);
+	auto Stale = F.DropRequest(2, ++Id); Stale.ExpectedSourceCount = 4;
+	TestTrue(TEXT("Stale quantity"), F.Inventory->ExecuteInventoryOperation(Stale).Status == OpStatus::StaleState);
+	TestTrue(TEXT("Void cannot consume inventory"), Run(2) == OpStatus::InvalidLocation);
+	F.Floor();
+	// All nearby candidates obstructed: searching must not turn failure into a through-wall drop.
+	auto* Wall = F.World->SpawnActor<AActor>(); auto* Box = NewObject<UBoxComponent>(Wall); Wall->SetRootComponent(Box);
+	Box->SetBoxExtent(FVector(300,300,200)); Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	Box->SetCollisionResponseToAllChannels(ECR_Block); Box->RegisterComponent(); Wall->SetActorLocation(FVector(65,0,100));
+	TestTrue(TEXT("Blocked area rejects every candidate"), Run(2) == OpStatus::InvalidLocation); Wall->Destroy();
+	const auto SpawnHandle = F.World->AddOnActorSpawnedHandler(FOnActorSpawned::FDelegate::CreateLambda([](AActor* Actor)
+	{
+		if (Cast<ALyraWorldPickup>(Actor)) { Actor->Destroy(); }
+	}));
+	TestTrue(TEXT("Generated actor failure rolls back"), Run(2) == OpStatus::SpawnFailed);
+	F.World->RemoveOnActorSpawnedHandler(SpawnHandle);
+	TestEqual(TEXT("Failures retain exact quantity"), F.Inventory->GetTotalItemCountByDefinition(F.Def), 5);
+	TestTrue(TEXT("Failures retain quickbar reference"), Quick->GetSlots()[0] == Item);
+	TestNull(TEXT("Failure leaves no claimable world source"), F.Dropped());
+	auto* Health = NewObject<ULyraHealthComponent>(F.PC->GetPawn()); Health->RegisterComponent(); Health->StartDeath();
+	TestTrue(TEXT("Dead character rejected"), Run(2) == OpStatus::NotAllowed);
+	F.PC->UnPossess(); TestTrue(TEXT("No pawn rejected"), Run(2) == OpStatus::NotAllowed);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLyraDropStateTest, "Lyra.Inventory.Drop.WeaponStateAndOwnership", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+bool FLyraDropStateTest::RunTest(const FString& Parameters)
+{
+	using namespace LyraPickupTest;
+	FFixture F; F.Floor();
+	F.Def = LoadClass<ULyraInventoryItemDefinition>(nullptr, TEXT("/Game/WeaponSystem/Weapons/Rifle/ID_WS_Rifle.ID_WS_Rifle_C"));
+	if (!TestNotNull(TEXT("Real weapon definition"), F.Def.Get())) { return false; }
+	auto* Item = F.Inventory->AddItemDefinition(F.Def, 1);
+	const auto Magazine = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.MagazineAmmo"));
+	const auto Reserve = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.SpareAmmo"));
+	Item->RemoveStatTagStack(Magazine, Item->GetStatTagStackCount(Magazine));
+	Item->RemoveStatTagStack(Reserve, Item->GetStatTagStackCount(Reserve));
+	Item->AddStatTagStack(Reserve, 19); // An absent magazine tag must remain zero.
+	const auto OldId = F.Inventory->GetSlotSnapshot()[0].EntryId;
+	auto* Quick = NewObject<ULyraQuickBarComponent>(F.PC); Quick->RegisterComponent(); Quick->RegisterAllComponentTickFunctions(true); Quick->BeginPlay(); Quick->AddItemToSlot(0, Item);
+	TestTrue(TEXT("Entire stateful item dropped"), F.Inventory->ExecuteInventoryOperation(F.DropRequest(1)).Status == ELyraInventoryOperationStatus::Success);
+	TestNull(TEXT("Source quickbar cleared"), Quick->GetSlots()[0]);
+	auto* Ground = F.Dropped(); if (!TestNotNull(TEXT("Stateful world source"), Ground)) { return false; }
+	auto* Other = F.Player(1); auto* Inv = Other->FindComponentByClass<ULyraInventoryManagerComponent>();
+	const auto S = Ground->GetPickupState(); TestEqual(TEXT("Other player receives item"), Ground->TryPickup(Other, S.Id, S.Revision).Added, 1);
+	auto* Rebuilt = Inv->GetSlotSnapshot()[0].Instance.Get(); if (!TestNotNull(TEXT("Rebuilt item"), Rebuilt)) { return false; }
+	TestTrue(TEXT("Fresh identity and legal outer"), Rebuilt != Item && Rebuilt->GetOuter() == Other && Inv->GetSlotSnapshot()[0].EntryId != OldId);
+	TestEqual(TEXT("Empty magazine preserved"), Rebuilt->GetStatTagStackCount(Magazine), 0);
+	TestEqual(TEXT("Reserve preserved"), Rebuilt->GetStatTagStackCount(Reserve), 19);
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLyraDropNearbyWeaponsTest, "Lyra.Inventory.Drop.NearbyShotguns", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+bool FLyraDropNearbyWeaponsTest::RunTest(const FString& Parameters)
+{
+	using namespace LyraPickupTest;
+	FFixture F(6); F.Floor();
+	F.Def = LoadClass<ULyraInventoryItemDefinition>(nullptr, TEXT("/Game/WeaponSystem/Weapons/Shotgun/ID_WS_Shotgun.ID_WS_Shotgun_C"));
+	if (!TestNotNull(TEXT("Actual shotgun asset"), F.Def.Get())) { return false; }
+	const auto Magazine = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.MagazineAmmo"));
+	const auto Reserve = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.SpareAmmo"));
+	TestEqual(TEXT("Three shotguns occupy separate slots"), F.Inventory->AddItemDefinitionWithResult(F.Def, 3, false).AddedCount, 3);
+	const auto Slots = F.Inventory->GetSlotSnapshot();
+	const FVector OriginalLocation = F.PC->GetPawn()->GetActorLocation();
+	TArray<ALyraWorldPickup*> GroundItems;
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		auto* Item = Slots[Index].Instance.Get(); if (!TestNotNull(TEXT("Separate shotgun instance"), Item)) { return false; }
+		Item->RemoveStatTagStack(Magazine, Item->GetStatTagStackCount(Magazine)); Item->AddStatTagStack(Magazine, Index);
+		Item->RemoveStatTagStack(Reserve, Item->GetStatTagStackCount(Reserve)); Item->AddStatTagStack(Reserve, Index + 3);
+		FLyraInventoryOperationRequest Request;
+		Request.Operation = ELyraInventoryOperation::Drop; Request.RequestId = Index + 1;
+		Request.SourceSlot = Request.TargetSlot = Slots[Index].SlotIndex;
+		Request.SourceEntryId = Slots[Index].EntryId; Request.ExpectedSourceCount = 1; Request.Quantity = 1;
+		if (!TestTrue(TEXT("Consecutive stationary drop succeeds"), F.Inventory->ExecuteInventoryOperation(Request).Status == ELyraInventoryOperationStatus::Success)) { return false; }
+	}
+	for (TActorIterator<ALyraWorldPickup> It(F.World); It; ++It) { GroundItems.Add(*It); }
+	TestEqual(TEXT("All three ground weapons coexist"), GroundItems.Num(), 3);
+	TestEqual(TEXT("No movement required"), F.PC->GetPawn()->GetActorLocation(), OriginalLocation);
+	for (int32 A = 0; A < GroundItems.Num(); ++A)
+	{
+		TestEqual(TEXT("Each weapon remains independent"), GroundItems[A]->GetPickupState().Count, 1);
+		for (int32 B = A + 1; B < GroundItems.Num(); ++B)
+		{ TestTrue(TEXT("Ground pickups do not overlap"), FVector::Distance(GroundItems[A]->GetActorLocation(), GroundItems[B]->GetActorLocation()) >= 60); }
+	}
+	auto* Other = F.Player(6); auto* Inv = Other->FindComponentByClass<ULyraInventoryManagerComponent>();
+	auto* Owned = Inv->AddItemDefinition(F.Def, 1);
+	const int32 OwnedMagazine = Owned->GetStatTagStackCount(Magazine), OwnedReserve = Owned->GetStatTagStackCount(Reserve);
+	for (auto* Ground : GroundItems)
+	{
+		const auto S = Ground->GetPickupState();
+		TestEqual(TEXT("Already owning a shotgun does not prevent E pickup"), Ground->TryPickup(Other, S.Id, S.Revision).Added, 1);
+	}
+	TestEqual(TEXT("Four shotguns can coexist in backpack"), Inv->GetTotalItemCountByDefinition(F.Def), 4);
+	TestEqual(TEXT("New pickup does not refill the existing magazine"), Owned->GetStatTagStackCount(Magazine), OwnedMagazine);
+	TestEqual(TEXT("New pickup does not refill the existing reserve"), Owned->GetStatTagStackCount(Reserve), OwnedReserve);
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		const auto Items = Inv->GetAllItems();
+		TestTrue(TEXT("Distinct dropped ammunition states survive"), Items.ContainsByPredicate([&](const auto* Item)
+		{ return Item != Owned && Item->GetStatTagStackCount(Magazine) == Index && Item->GetStatTagStackCount(Reserve) == Index + 3; }));
+	}
 	return true;
 }
 #endif

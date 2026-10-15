@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "GameFramework/Actor.h"
+#include "LyraInventoryItemSnapshot.h"
 #include "LyraWorldPickup.generated.h"
 
 class ULyraInventoryItemDefinition;
@@ -46,6 +47,8 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void Tick(float DeltaSeconds) override;
 	bool Initialize(TSubclassOf<ULyraInventoryItemDefinition> Definition, int32 Count);
+	bool InitializeDroppedSnapshot(const FLyraInventoryItemSnapshot& Snapshot);
+	void CommitDrop();
 	const FLyraWorldPickupState& GetPickupState() const { return State; }
 	// Evaluates server-owned pawn position, health, ownership, and visibility. Also used for local hints.
 	ELyraPickupStatus CheckAccess(const APlayerController* Controller) const;
@@ -59,4 +62,6 @@ private:
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Weapon;
 	UPROPERTY() TObjectPtr<UTextRenderComponent> Label;
 	bool bClaimInProgress = false;
+	bool bDropPending = false;
+	UPROPERTY() FLyraInventoryItemSnapshot DroppedSnapshot;
 };

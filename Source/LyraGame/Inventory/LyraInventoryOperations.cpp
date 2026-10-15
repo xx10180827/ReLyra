@@ -54,6 +54,7 @@ FLyraInventoryOperationResult ULyraInventoryManagerComponent::ExecuteInventoryOp
 	// Retain a watermark instead of an unbounded request cache. Invalid requests are consumed too.
 	LastProcessedOperationId = Request.RequestId;
 	Result.LastProcessedRequestId = LastProcessedOperationId;
+	if (Request.Operation == EOperation::Drop) { return ExecuteDrop(Request, Result); }
 	if (GetOwner()->IsActorBeingDestroyed() || SlotCapacity <= 0 || Request.SourceSlot < 0 || Request.TargetSlot < 0
 		|| Request.SourceSlot >= SlotCapacity || Request.TargetSlot >= SlotCapacity || Request.SourceSlot == Request.TargetSlot
 		|| uint8(Request.Operation) > uint8(EOperation::Merge)) { return Result; }

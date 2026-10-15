@@ -58,6 +58,19 @@ bool ALyraWorldPickup::Initialize(TSubclassOf<ULyraInventoryItemDefinition> Defi
 	OnRep_State(); ForceNetUpdate(); return true;
 }
 
+bool ALyraWorldPickup::InitializeDroppedSnapshot(const FLyraInventoryItemSnapshot& Snapshot)
+{
+	if (!HasAuthority() || !Snapshot.IsValid() || State.Id.IsValid()) { return false; }
+	bDropPending = true;
+	DroppedSnapshot = Snapshot;
+	return Initialize(Snapshot.ItemDef, Snapshot.StackCount);
+}
+
+void ALyraWorldPickup::CommitDrop()
+{
+	if (HasAuthority()) { bDropPending = false; ForceNetUpdate(); }
+}
+
 void ALyraWorldPickup::OnRep_State()
 {
 	// Default engine world font is ASCII; localized names are shown by the screen prompt.
@@ -99,14 +112,20 @@ FLyraPickupResult ALyraWorldPickup::TryPickup(APlayerController* Controller, FGu
 {
 	FLyraPickupResult Result; Result.Remaining = State.Count;
 	if (!HasAuthority() || !IsValid(Controller) || !Controller->HasAuthority()) { Result.Status = ELyraPickupStatus::NotAuthority; return Result; }
-	if (bClaimInProgress) { Result.Status = ELyraPickupStatus::Busy; return Result; }
+	if (bClaimInProgress || bDropPending) { Result.Status = ELyraPickupStatus::Busy; return Result; }
 	if (State.Id != ExpectedId || State.Revision != ExpectedRevision) { Result.Status = ELyraPickupStatus::Stale; return Result; }
 	Result.Status = CheckAccess(Controller);
 	if (Result.Status != ELyraPickupStatus::Success) { return Result; }
 	auto* Inventory = Controller->FindComponentByClass<ULyraInventoryManagerComponent>();
 	if (!Inventory || Inventory->GetSlotCapacity() <= 0 || State.Revision == MAX_int32) { Result.Status = ELyraPickupStatus::NotAllowed; return Result; }
 	TGuardValue<bool> Guard(bClaimInProgress, true);
-	const auto Added = Inventory->AddItemDefinitionWithResult(State.Definition, State.Count, true);
+	FLyraInventoryAddResult Added;
+	if (DroppedSnapshot.IsValid())
+	{
+		DroppedSnapshot.StackCount = State.Count;
+		Added = Inventory->AddItemSnapshotWithResult(DroppedSnapshot);
+	}
+	else { Added = Inventory->AddItemDefinitionWithResult(State.Definition, State.Count, true); }
 	if (Added.AddedCount <= 0)
 	{
 		Result.Status = Added.Status == ELyraInventoryAddStatus::NoSpace ? ELyraPickupStatus::NoSpace : ELyraPickupStatus::Busy;

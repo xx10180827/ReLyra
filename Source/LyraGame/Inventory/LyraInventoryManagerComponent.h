@@ -250,6 +250,8 @@ public:
 	// The caller owns the world-pickup/save transaction and must consume its source exactly once.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Inventory)
 	ULyraInventoryItemInstance* RestoreItemSnapshot(const FLyraInventoryItemSnapshot& Snapshot);
+	// Trusted world source only; merges compatible state and returns the exact admitted quantity.
+	FLyraInventoryAddResult AddItemSnapshotWithResult(const FLyraInventoryItemSnapshot& Snapshot);
 
 	// Transfers an entire owned stack. Failure leaves both inventories and equipment unchanged.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category=Inventory)
@@ -309,6 +311,7 @@ private:
 	void RegisterNewItem(ULyraInventoryItemInstance* Item);
 	bool CanRestoreSnapshot(const FLyraInventoryItemSnapshot& Snapshot) const;
 	void RemoveEntryAndReferences(ULyraInventoryItemInstance* Item);
+	FLyraInventoryOperationResult ExecuteDrop(const FLyraInventoryOperationRequest& Request, FLyraInventoryOperationResult Result);
 
 	UPROPERTY(Replicated)
 	int32 SlotCapacity = 0;

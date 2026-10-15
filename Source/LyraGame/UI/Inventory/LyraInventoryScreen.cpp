@@ -186,10 +186,14 @@ TSharedRef<SWidget> ULyraInventoryScreen::RebuildWidget()
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailStats).Font(Font(17)).ColorAndOpacity(Cyan).WrapTextAt(266)]
 		+ SVerticalBox::Slot().FillHeight(1).Padding(0, 20)[SNew(SScrollBox)
 			+ SScrollBox::Slot()[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailDescription).Font(Font(17)).AutoWrapText(true)]]
-		+ SVerticalBox::Slot().AutoHeight()[Text(LOCTEXT("SelectHelp", "选择格子查看物品\n整理不会额外复制装备"), 14, Muted)];
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[SNew(SButton).HAlign(HAlign_Center)
+			.IsEnabled_Lambda([this] { return !bRequestPending && !bQuantityOpen && Definition(SelectedSlot); })
+			.OnClicked_Lambda([this] { BeginDrop(); return FReply::Handled(); })[Text(LOCTEXT("Drop", "丢弃…"), 20, Cyan)]]
+		+ SVerticalBox::Slot().AutoHeight()[Text(LOCTEXT("SelectHelp", "选择数量丢弃到面前\n其他玩家可按 E 拾取"), 14, Muted)];
 	auto QuantityBox = Frame(SNew(SBox).WidthOverride(420)
 		[SNew(SVerticalBox)
-		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[Text(LOCTEXT("QuantityTitle", "选择转移数量"), 26, Cyan)]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[SNew(STextBlock).Font(Font(26)).ColorAndOpacity(Cyan)
+			.Text_Lambda([this] { return PendingOperation == ELyraInventoryOperation::Drop ? LOCTEXT("DropQuantity", "选择丢弃数量") : LOCTEXT("QuantityTitle", "选择转移数量"); })]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 18)
 		[SNew(SSpinBox<int32>).MinValue(1).MaxValue_Lambda([this] { return TOptional<int32>(GetQuantityLimit()); })
 			.Value_Lambda([this] { return Quantity; }).OnValueChanged_Lambda([this](int32 Value) { Quantity = Value; }).Font(Font(24))]
@@ -337,8 +341,9 @@ void ULyraInventoryScreen::RefreshInventory()
 		case ELyraInventoryOperation::Swap: Applied = A.EntryId == PendingTarget.EntryId && B.EntryId == PendingSource.EntryId; break;
 		case ELyraInventoryOperation::Split: Applied = A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity && B.Instance && B.StackCount == Quantity; break;
 		case ELyraInventoryOperation::Merge: Applied = A.StackCount == PendingSource.StackCount - Quantity && B.EntryId == PendingTarget.EntryId && B.StackCount == PendingTarget.StackCount + Quantity; break;
+		case ELyraInventoryOperation::Drop: Applied = Quantity == PendingSource.StackCount ? !A.EntryId.IsValid() : A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity; break;
 		}
-		if (Applied) { bRequestPending = bAwaitingReplication = false; Feedback = LOCTEXT("Done", "整理完成"); }
+		if (Applied) { bRequestPending = bAwaitingReplication = false; Feedback = PendingOperation == ELyraInventoryOperation::Drop ? LOCTEXT("Dropped", "已丢弃到面前，关闭背包可按 E 拾取") : LOCTEXT("Done", "整理完成"); }
 	}
 }
 
@@ -447,10 +452,19 @@ void ULyraInventoryScreen::DropOnSlot(int32 Source, FGuid Entry, int32 Count, in
 }
 int32 ULyraInventoryScreen::GetQuantityLimit() const
 {
+	if (PendingOperation == ELyraInventoryOperation::Drop) { return PendingSource.StackCount; }
 	if (PendingOperation == ELyraInventoryOperation::Split) { return PendingSource.StackCount - 1; }
 	const auto* Def = Definition(PendingSource.SlotIndex);
 	return Def ? FMath::Min(PendingSource.StackCount, Def->GetMaxStackSize() - PendingTarget.StackCount) : 0;
 }
+void ULyraInventoryScreen::BeginDrop()
+{
+	if (!Inventory || bRequestPending || bQuantityOpen || !Definition(SelectedSlot)) { return; }
+	PendingSource = PendingTarget = DisplayedSlots[SelectedSlot];
+	PendingOperation = ELyraInventoryOperation::Drop;
+	Quantity = 1; bQuantityOpen = true;
+}
+
 void ULyraInventoryScreen::ConfirmQuantity()
 {
 	if (!bQuantityOpen) { return; }
@@ -471,7 +485,7 @@ void ULyraInventoryScreen::Submit(ELyraInventoryOperation Op, const FLyraInvento
 	PendingOperation = Op; PendingSource = Source; PendingTarget = Target; Quantity = Count;
 	PendingRequestId = Inventory->GetNextLocalOperationId();
 	bRequestPending = true; bAwaitingReplication = false; RequestStartedAt = FPlatformTime::Seconds();
-	Feedback = LOCTEXT("Submitting", "正在整理…");
+	Feedback = Op == ELyraInventoryOperation::Drop ? LOCTEXT("Dropping", "正在丢弃…") : LOCTEXT("Submitting", "正在整理…");
 	// Set pending state first: a listen-server owner's result can be synchronous.
 	if (!Inventory->RequestInventoryOperation(Op, Source.SlotIndex, Target.SlotIndex, Count))
 	{
@@ -485,6 +499,9 @@ void ULyraInventoryScreen::OperationCompleted(const FLyraInventoryOperationResul
 	bRequestPending = bAwaitingReplication = false;
 	switch (Result.Status)
 	{
+	case ELyraInventoryOperationStatus::InvalidLocation: Feedback = LOCTEXT("DropBlocked", "面前没有安全落点，请移到平坦空地后重试；物品未扣除"); break;
+	case ELyraInventoryOperationStatus::SpawnFailed: Feedback = LOCTEXT("SpawnFailed", "地面物品生成失败，物品未扣除"); break;
+	case ELyraInventoryOperationStatus::NotAllowed: Feedback = LOCTEXT("DropNotAllowed", "当前角色状态无法丢弃，物品未改变"); break;
 	case ELyraInventoryOperationStatus::Incompatible: Feedback = LOCTEXT("Incompatible", "物品状态不同，不能合并"); break;
 	case ELyraInventoryOperationStatus::NoSpace: Feedback = LOCTEXT("NoSpace", "目标空间不足，物品未改变"); break;
 	case ELyraInventoryOperationStatus::StaleState:
