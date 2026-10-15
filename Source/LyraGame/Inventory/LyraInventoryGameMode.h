@@ -24,10 +24,10 @@ class LYRAGAME_API ALyraInventoryGameMode : public ALyraGameMode
 
 public:
 	ALyraInventoryGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual void InitGameState() override;
 
-	// Only this experience opts into fixed inventory capacity. Other game modes remain unlimited.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Inventory, meta=(ClampMin="1", ClampMax="1024"))
-	int32 InventorySlotCapacity = 20;
 	virtual void PreLogin(const FString& Options, const FString& Address,
 		const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
+private:
+	void SpawnPickupStations(const class ULyraExperienceDefinition* Experience);
 };

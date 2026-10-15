@@ -1,0 +1,88 @@
+[
+  {
+    "name": "Inventory",
+    "map": "/Game/InventorySystem/Maps/L_InventoryMultiplayer",
+    "defaultExperience": "B_InventoryMultiplayer"
+  },
+  {
+    "name": "Expanse",
+    "map": "/ShooterMaps/Maps/L_Expanse",
+    "defaultExperience": "B_ShooterGame_Elimination"
+  },
+  {
+    "name": "ControlPoints",
+    "map": "/ShooterMaps/Maps/L_Convolution_Blockout",
+    "defaultExperience": "B_LyraShooterGame_ControlPoints"
+  },
+  {
+    "name": "ShooterPerf",
+    "map": "/ShooterCore/Maps/L_ShooterPerf",
+    "defaultExperience": "B_ShooterGame_Perf"
+  },
+  {
+    "name": "TopDownArena",
+    "map": "/TopDownArena/Maps/L_TopDownArenaGym",
+    "defaultExperience": "B_TopDownArenaExperience"
+  },
+  {
+    "name": "TopDownLocal",
+    "map": "/TopDownArena/Maps/L_TopDown_LocalMultiplayer",
+    "defaultExperience": "B_TopDownArena_Multiplayer_Experience"
+  },
+  {
+    "name": "WeaponTest",
+    "map": "/Game/WeaponSystem/Maps/L_WS_WeaponTest",
+    "defaultExperience": "B_ShooterGame_Elimination"
+  },
+  {
+    "name": "ExplorerInventory",
+    "map": "/ShooterExplorer/Maps/L_InventoryTestMap",
+    "defaultExperience": "B_TestInventoryExperience"
+  },
+  {
+    "name": "ExplorerInteraction",
+    "map": "/ShooterExplorer/Maps/L_InteractionTestMap",
+    "defaultExperience": "B_TestInventoryExperience"
+  },
+  {
+    "name": "ShooterGym",
+    "map": "/ShooterCore/Maps/L_ShooterGym",
+    "defaultExperience": "B_ShooterGame_Elimination"
+  },
+  {
+    "name": "ShooterGymControl",
+    "map": "/ShooterCore/Maps/L_ShooterGym",
+    "experience": "B_LyraShooterGame_ControlPoints",
+    "defaultExperience": "B_ShooterGame_Elimination"
+  },
+  {
+    "name": "ExpanseBlockout",
+    "map": "/ShooterMaps/Maps/L_Expanse_Blockout",
+    "defaultExperience": "B_ShooterGame_Elimination"
+  },
+  {
+    "name": "FiringRange",
+    "map": "/ShooterMaps/Maps/L_FiringRange_WP",
+    "defaultExperience": "B_ShooterGame_Elimination"
+  },
+  {
+    "name": "AutoRunTest",
+    "map": "/ShooterTests/Maps/L_ShooterTest_AutoRun",
+    "defaultExperience": "B_BasicShooterTest"
+  },
+  {
+    "name": "DevicePropertiesTest",
+    "map": "/ShooterTests/Maps/L_ShooterTest_DeviceProperties",
+    "defaultExperience": "B_BasicShooterTest"
+  },
+  {
+    "name": "FireWeaponTest",
+    "map": "/ShooterTests/Maps/L_ShooterTest_FireWeapon",
+    "defaultExperience": "B_BasicShooterTest"
+  },
+  {
+    "name": "EditorOverview",
+    "map": "/Game/System/DefaultEditorMap/L_DefaultEditorOverview",
+    "defaultExperience": "B_LyraDefaultExperience"
+  }
+]

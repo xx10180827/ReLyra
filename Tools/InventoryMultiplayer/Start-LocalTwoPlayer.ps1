@@ -1,5 +1,6 @@
 param(
     [string]$EngineRoot,
+    [switch]$UIFixture,
     [ValidateRange(1024, 65535)]
     [int]$Port = 17777,
     [ValidateRange(60, 900)]
@@ -46,6 +47,8 @@ $commonArguments = @(
     '-ExecCmds="t.MaxFPS 45,sg.ViewDistanceQuality 1,sg.ShadowQuality 1,sg.PostProcessQuality 1,sg.EffectsQuality 1"'
 )
 
+if ($UIFixture) { $commonArguments += '-InventoryUIFixture' }
+
 function Read-AcceptanceLog([string]$Path) {
     if (Test-Path -LiteralPath $Path) { return [string](Get-Content -LiteralPath $Path -Raw) }
     return ''
@@ -82,6 +85,7 @@ try {
         hostPassed = $hostReady
         clientPassed = $clientReady
         movementChecked = $false
+        inventoryUIFixture = [bool]$UIFixture
         rendering = $true
         port = $Port
         hostLog = $hostLog
@@ -90,6 +94,12 @@ try {
     Write-Output "READY FOR YOUR ACCEPTANCE. Both game windows stay open. Reports: $runDirectory"
     Write-Output 'Click one game window to control it: WASD move, mouse look, Space jump. Alt+Tab switches windows.'
     Write-Output 'Check that each window sees the other player move. Close CLIENT first, then HOST with Alt+F4.'
+    Write-Output 'I opens the inventory. Approach and look at a station item, then press E to pick up. Both players share these finite world items.'
+    Write-Output 'The rifle-ammo station contains 1250 rounds to check partial pickup and full inventory; remaining items stay on the ground.'
+    if ($UIFixture) {
+        Write-Output 'Inventory UI: press I to open/close. Each player starts with one pistol and 13 test supplies (10 + 3).'
+        Write-Output 'Drag to move/swap/merge. Shift+drag selects a quantity. Esc cancels the quantity dialog or closes the inventory.'
+    }
 }
 catch {
     [ordered]@{

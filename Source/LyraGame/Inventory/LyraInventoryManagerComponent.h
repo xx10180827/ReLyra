@@ -142,6 +142,9 @@ public:
 	void PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize);
 	void PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize);
 	void PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize);
+	// UI listeners invalidate their view; rendering is deferred until the transaction is complete.
+	void MarkItemDirty(FLyraInventoryEntry& Item);
+	void MarkArrayDirty();
 	//~End of FFastArraySerializer contract
 
 	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParms)
@@ -196,6 +199,9 @@ class LYRAGAME_API ULyraInventoryManagerComponent : public UActorComponent
 
 public:
 	ULyraInventoryManagerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	DECLARE_MULTICAST_DELEGATE(FOnInventoryChanged);
+	FOnInventoryChanged OnInventoryChanged;
+	void NotifyInventoryChanged() { OnInventoryChanged.Broadcast(); }
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -278,6 +284,7 @@ public:
 
 	UFUNCTION(BlueprintPure, Category=Inventory)
 	FLyraInventoryOperationResult GetLastOperationResult() const { return LastOperationResult; }
+	int64 GetNextLocalOperationId() const { return NextLocalOperationId < MAX_int64 ? NextLocalOperationId + 1 : 0; }
 
 	// The result can arrive before the replicated inventory; UI still renders inventory data.
 	UPROPERTY(BlueprintAssignable, Category=Inventory)

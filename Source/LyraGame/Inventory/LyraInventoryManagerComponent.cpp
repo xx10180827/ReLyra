@@ -12,7 +12,8 @@
 #include "GameFramework/GameplayMessageSubsystem.h"
 #include "LyraInventoryItemDefinition.h"
 #include "LyraInventoryItemInstance.h"
-#include "LyraInventoryGameMode.h"
+#include "GameModes/LyraGameMode.h"
+#include "GameFramework/PlayerController.h"
 #include "NativeGameplayTags.h"
 #include "Net/UnrealNetwork.h"
 #include "Templates/UnrealTemplate.h"
@@ -43,6 +44,7 @@ FString FLyraInventoryEntry::GetDebugString() const
 
 void FLyraInventoryList::PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize)
 {
+	CastChecked<ULyraInventoryManagerComponent>(OwnerComponent)->NotifyInventoryChanged();
 	for (int32 Index : RemovedIndices)
 	{
 		FLyraInventoryEntry& Stack = Entries[Index];
@@ -53,6 +55,7 @@ void FLyraInventoryList::PreReplicatedRemove(const TArrayView<int32> RemovedIndi
 
 void FLyraInventoryList::PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize)
 {
+	CastChecked<ULyraInventoryManagerComponent>(OwnerComponent)->NotifyInventoryChanged();
 	for (int32 Index : AddedIndices)
 	{
 		FLyraInventoryEntry& Stack = Entries[Index];
@@ -63,6 +66,7 @@ void FLyraInventoryList::PostReplicatedAdd(const TArrayView<int32> AddedIndices,
 
 void FLyraInventoryList::PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize)
 {
+	CastChecked<ULyraInventoryManagerComponent>(OwnerComponent)->NotifyInventoryChanged();
 	for (int32 Index : ChangedIndices)
 	{
 		FLyraInventoryEntry& Stack = Entries[Index];
@@ -70,6 +74,18 @@ void FLyraInventoryList::PostReplicatedChange(const TArrayView<int32> ChangedInd
 		BroadcastChangeMessage(Stack, /*OldCount=*/ Stack.LastObservedCount, /*NewCount=*/ Stack.StackCount);
 		Stack.LastObservedCount = Stack.StackCount;
 	}
+}
+
+void FLyraInventoryList::MarkItemDirty(FLyraInventoryEntry& Item)
+{
+	FFastArraySerializer::MarkItemDirty(Item);
+	CastChecked<ULyraInventoryManagerComponent>(OwnerComponent)->NotifyInventoryChanged();
+}
+
+void FLyraInventoryList::MarkArrayDirty()
+{
+	FFastArraySerializer::MarkArrayDirty();
+	CastChecked<ULyraInventoryManagerComponent>(OwnerComponent)->NotifyInventoryChanged();
 }
 
 void FLyraInventoryList::BroadcastChangeMessage(FLyraInventoryEntry& Entry, int32 OldCount, int32 NewCount)
@@ -204,7 +220,7 @@ void ULyraInventoryManagerComponent::GetLifetimeReplicatedProps(TArray< FLifetim
 void ULyraInventoryManagerComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	if (const ALyraInventoryGameMode* Mode = GetWorld()->GetAuthGameMode<ALyraInventoryGameMode>())
+	if (const ALyraGameMode* Mode = GetWorld()->GetAuthGameMode<ALyraGameMode>(); Mode && Cast<APlayerController>(GetOwner()))
 	{
 		ensureMsgf(ConfigureSlotCapacity(Mode->InventorySlotCapacity), TEXT("Invalid inventory scene capacity"));
 	}
@@ -246,6 +262,7 @@ bool ULyraInventoryManagerComponent::ConfigureSlotCapacity(int32 NewCapacity)
 		}
 	}
 	SlotCapacity = NewCapacity;
+	NotifyInventoryChanged();
 	return true;
 }
 

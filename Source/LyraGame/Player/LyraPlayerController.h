@@ -4,6 +4,7 @@
 
 #include "Camera/LyraCameraAssistInterface.h"
 #include "CommonPlayerController.h"
+#include "Inventory/LyraWorldPickup.h"
 #include "Teams/LyraTeamAgentInterface.h"
 
 #include "LyraPlayerController.generated.h"
@@ -18,6 +19,7 @@ class FPrimitiveComponentId;
 class IInputInterface;
 class ULyraAbilitySystemComponent;
 class ULyraSettingsShared;
+class ULyraInventoryScreen;
 class UObject;
 class UPlayer;
 struct FFrame;
@@ -76,6 +78,11 @@ public:
 	//~End of AController interface
 
 	//~APlayerController interface
+	virtual void SetupInputComponent() override;
+	virtual bool InputKey(const FInputKeyParams& Params) override;
+	virtual void Tick(float DeltaTime) override;
+	virtual void PreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel) override;
+	virtual void GetSeamlessTravelActorList(bool bToEntry, TArray<AActor*>& ActorList) override;
 	virtual void ReceivedPlayer() override;
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetPlayer(UPlayer* InPlayer) override;
@@ -138,6 +145,35 @@ protected:
 	void K2_OnEndAutoRun();
 
 	bool bHideViewTargetPawnNextFrame = false;
+public:
+	void ToggleInventory();
+	ULyraInventoryScreen* GetInventoryScreen() const { return InventoryScreen; }
+	void PickupFocusedItem();
+	int64 RequestPickup(ALyraWorldPickup* Pickup);
+	UFUNCTION(Server, Reliable) void ServerRequestPickup(ALyraWorldPickup* Pickup, FGuid Id, int32 Revision, int64 RequestId);
+	UFUNCTION(Client, Reliable) void ClientPickupResult(const FLyraPickupResult& Result);
+	const FLyraPickupResult& GetLastPickupResult() const { return LastPickupResult; }
+	ALyraWorldPickup* GetFocusedPickup() const { return FocusedPickup.Get(); }
+private:
+	void TickPickupInteraction();
+	void RemovePickupPrompt();
+	bool CanUsePickupInput() const;
+	TSharedPtr<SWidget> PickupPrompt;
+	TWeakObjectPtr<ALyraWorldPickup> FocusedPickup;
+	FText PickupFeedback;
+	FLyraPickupResult LastPickupResult;
+	int64 NextPickupRequest = 0;
+	int64 LastServerPickupRequest = 0;
+	int64 PendingPickupRequest = 0;
+	double PickupRequestTime = 0;
+	double PickupFeedbackUntil = 0;
+	double NextPickupScan = 0;
+	UPROPERTY(Transient) TObjectPtr<ULyraInventoryScreen> InventoryScreen;
+	TWeakObjectPtr<APawn> InventoryPawn;
+
+
+	void ReleaseInventoryUI();
+
 };
 
 

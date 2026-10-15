@@ -12,7 +12,8 @@ class ULyraInventoryTestItemDefinition : public ULyraInventoryItemDefinition
 public:
 	ULyraInventoryTestItemDefinition()
 	{
-		DisplayName = FText::FromString(TEXT("Inventory test supply"));
+		DisplayName = FText::FromString(TEXT("测试补给"));
+		Description = FText::FromString(TEXT("用于背包整理体验的测试补给。每格最多 10 个，可拖动、拆分和合并。当前不提供使用效果。"));
 		ItemType = ELyraInventoryItemType::Ammunition;
 		MaxStackSize = 10;
 	}

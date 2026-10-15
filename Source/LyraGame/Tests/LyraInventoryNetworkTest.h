@@ -18,6 +18,18 @@ public:
 
 private:
 	bool TickInventoryOperations(bool bHost);
+	bool TickInventoryUI(bool bHost);
+	bool TickInventoryPickup(bool bHost);
+	bool bVerifyPickup = false;
+	bool bPickupVerified = false;
+	int32 PickupStep = 0;
+	double PickupRaceAt = 0;
+	TWeakObjectPtr<class ALyraWorldPickup> PickupSource;
+	FGuid PickupIdentity;
+	bool bVerifyUI = false;
+	bool bUIVerified = false;
+	int32 UIStep = 0;
+	double UIChangedAt = 0;
 	bool bVerifyOperations = false;
 	bool bOperationsVerified = false;
 	int32 OperationStep = 0;

@@ -40,6 +40,10 @@ public:
 
 	ALyraGameMode(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	// Human players share the fixed-grid backpack across gameplay experiences.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Inventory, meta=(ClampMin="1", ClampMax="1024"))
+	int32 InventorySlotCapacity = 20;
+
 	UFUNCTION(BlueprintCallable, Category = "Lyra|Pawn")
 	const ULyraPawnData* GetPawnDataForController(const AController* InController) const;
 

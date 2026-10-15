@@ -61,6 +61,7 @@ void ALyraPlayerController::BeginPlay()
 
 void ALyraPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	ReleaseInventoryUI();
 	Super::EndPlay(EndPlayReason);
 }
 

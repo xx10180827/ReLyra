@@ -4,6 +4,8 @@ param(
     [switch]$InventoryRules,
     [switch]$InventorySnapshots,
     [switch]$InventoryOperations,
+    [switch]$InventoryUI,
+    [switch]$InventoryPickup,
     [ValidateRange(1024, 65535)]
     [int]$Port = 17777,
     [ValidateRange(30, 900)]
@@ -11,6 +13,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($InventoryPickup) {
+    if ($InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules) { throw 'Run pickup scenarios separately from inventory arrangement fixtures.' }
+    $Render = $true
+}
+if ($InventoryUI) { $InventoryOperations = $true; $Render = $true }
 if ($InventoryOperations) { $InventoryRules = $true; $InventorySnapshots = $true }
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $projectFile = Join-Path $projectRoot 'Lyra.uproject'
@@ -46,6 +53,8 @@ if ($Render) {
 if ($InventoryRules) { $commonArguments += '-InventoryTestRules' }
 if ($InventorySnapshots) { $commonArguments += '-InventoryTestSnapshots' }
 if ($InventoryOperations) { $commonArguments += '-InventoryTestOperations' }
+if ($InventoryUI) { $commonArguments += '-InventoryTestUI' }
+if ($InventoryPickup) { $commonArguments += '-InventoryTestPickup' }
 
 function Read-TestLog([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
@@ -101,6 +110,13 @@ try {
     if ($InventoryOperations) {
         $inventoryOperationsPassed = $operationData.Count -eq 1 -and (Read-TestLog $hostLog).Contains('INVENTORY_OPERATIONS role=Host ' + $operationData[0].Groups[1].Value)
     }
+    $inventoryUIPassed = (-not $InventoryUI) -or (
+        (Read-TestLog $hostLog).Contains('INVENTORY_UI PASS role=Host slots=20 owner=local refresh=matched reopen=passed listeners=cleared input=restored') -and
+        (Read-TestLog $clientLog).Contains('INVENTORY_UI PASS role=Client slots=20 owner=local refresh=matched reopen=passed listeners=cleared input=restored'))
+    $pickupSummary = 'stations=5 partial=3 remainder=10 full=denied stale=denied distance=denied replay=denied raceTotal=190'
+    $inventoryPickupPassed = (-not $InventoryPickup) -or (
+        (Read-TestLog $hostLog).Contains('INVENTORY_PICKUP PASS role=Host ' + $pickupSummary) -and
+        (Read-TestLog $clientLog).Contains('INVENTORY_PICKUP PASS role=Client ' + $pickupSummary))
     $report = [ordered]@{
         hostExitCode = $hostProcess.ExitCode
         clientExitCode = $clientProcess.ExitCode
@@ -117,6 +133,10 @@ try {
         inventorySnapshotsPassed = $inventorySnapshotsPassed
         inventoryOperationsChecked = [bool]$InventoryOperations
         inventoryOperationsPassed = $inventoryOperationsPassed
+        inventoryUIChecked = [bool]$InventoryUI
+        inventoryUIPassed = $inventoryUIPassed
+        inventoryPickupChecked = [bool]$InventoryPickup
+        inventoryPickupPassed = $inventoryPickupPassed
         rendering = [bool]$Render
         port = $Port
         mode = 'Two independent processes using loopback IP; not a two-computer LAN test'
@@ -124,13 +144,15 @@ try {
         clientLog = $clientLog
     }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runDirectory 'Result.json') -Encoding utf8
-    if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
+    if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
         throw "Network smoke test failed. See $runDirectory"
     }
     Write-Output "PASS: two network players and required components initialized. Report: $runDirectory"
     if ($InventoryRules) { Write-Output 'PASS: inventory quantity rules and final replicated slot data matched.' }
     if ($InventorySnapshots) { Write-Output 'PASS: rebuilt item state and cleared quickbar/equipment references matched on both peers.' }
     if ($InventoryOperations) { Write-Output 'PASS: client RPC move/swap/split/merge, three rejected requests and replicated inventory matched.' }
+    if ($InventoryUI) { Write-Output 'PASS: both inventory screens matched their owner, refreshed operations, reopened and released input/listeners.' }
+    if ($InventoryPickup) { Write-Output 'PASS: E-key pickup, five replicated stations, partial/full inventory, stale/distant/replayed requests and two-player competition conserved quantity.' }
 }
 catch {
     $reportPath = Join-Path $runDirectory 'Result.json'
