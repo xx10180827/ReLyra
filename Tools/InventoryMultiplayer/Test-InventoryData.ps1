@@ -34,7 +34,7 @@ try {
     $report = Get-Content -LiteralPath (Join-Path $reportDirectory 'index.json') -Raw | ConvertFrom-Json
     $expected = @('Lyra.Inventory.Data.Capacity', 'Lyra.Inventory.Data.StableSlots',
         'Lyra.Inventory.Data.Configuration', 'Lyra.Inventory.Data.Metadata',
-        'Lyra.Weapons.Ranged.Ammo', 'Lyra.Weapons.Ranged.InventoryAmmoSync', 'Lyra.Weapons.Shotgun.Defaults',
+        'Lyra.Weapons.Ranged.Ammo', 'Lyra.Weapons.Ranged.ReloadCancellation', 'Lyra.Weapons.Ranged.InventoryAmmoSync', 'Lyra.Weapons.Shotgun.Defaults',
         'Lyra.Inventory.Rules.Stacking', 'Lyra.Inventory.Rules.PartialAndAtomicAdd',
         'Lyra.Inventory.Rules.AtomicConsumption', 'Lyra.Inventory.Rules.StateCompatibility',
         'Lyra.Inventory.Rules.InvalidAndAuthority', 'Lyra.Inventory.Rules.LargeCountsAndWeapons',
@@ -44,7 +44,7 @@ try {
         'Lyra.Inventory.Operations.Merge', 'Lyra.Inventory.Operations.Validation', 'Lyra.Inventory.Operations.ReplayConservation',
         'Lyra.Inventory.Pickup.QuantityAndCompetition', 'Lyra.Inventory.Pickup.Access', 'Lyra.Inventory.Pickup.RequestReplay',
         'Lyra.Inventory.Drop.QuantityAndCompetition', 'Lyra.Inventory.Drop.FailureRollback', 'Lyra.Inventory.Drop.WeaponStateAndOwnership',
-        'Lyra.Inventory.Drop.NearbyShotguns')
+        'Lyra.Inventory.Drop.NearbyShotguns', 'Lyra.Inventory.Equipment.ReferencesAndState', 'Lyra.Inventory.Equipment.Validation')
     $lines = @('# Inventory data, quantity rules and snapshot verification', '', 'This is an automated data report, not user acceptance or a playable inventory UI.', '', '| Test | Result |', '|---|---|')
     $allPassed = $testProcess.ExitCode -eq 0 -and $report.failed -eq 0 -and $report.notRun -eq 0
     foreach ($name in $expected) {

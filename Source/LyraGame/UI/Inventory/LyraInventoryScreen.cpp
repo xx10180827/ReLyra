@@ -6,7 +6,9 @@
 #include "Inventory/LyraInventoryItemInstance.h"
 #include "Inventory/LyraInventoryItemDefinition.h"
 #include "Inventory/InventoryFragment_QuickBarIcon.h"
+#include "Inventory/InventoryFragment_EquippableItem.h"
 #include "Equipment/LyraQuickBarComponent.h"
+#include "Equipment/LyraEquipmentDefinition.h"
 #include "CommonUIExtensions.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
@@ -170,22 +172,39 @@ TSharedRef<SWidget> ULyraInventoryScreen::RebuildWidget()
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
 		CenterPanel->AddSlot().AutoHeight().Padding(0, 4)
-		[Frame(SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 12, 0)[Text(FText::AsNumber(Index + 1), 18, Cyan)]
-			+ SHorizontalBox::Slot()[SNew(STextBlock).Text_Lambda([this, Index] { return QuickSlotName(Index); }).Font(Font(14))
-				.ColorAndOpacity_Lambda([this, Index] { return QuickSlotActive(Index) ? Cyan : Muted; })])];
+		[SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()[SNew(SButton).ContentPadding(FMargin(8, 12))
+				.IsEnabled_Lambda([this, Index] { return !bRequestPending && !bQuantityOpen && InventorySlotForQuickSlot(Index) != INDEX_NONE; })
+				.OnClicked_Lambda([this, Index] { ActivateQuickSlot(Index); return FReply::Handled(); })
+				[SNew(STextBlock).Text_Lambda([this, Index] { return FText::Format(LOCTEXT("QuickLabel", "{0}  {1}"), FText::AsNumber(Index + 1), QuickSlotName(Index)); }).Font(Font(14))
+				.ColorAndOpacity_Lambda([this, Index] { return QuickSlotActive(Index) ? Cyan : Muted; })]]
+			+ SHorizontalBox::Slot().AutoWidth().Padding(4, 0)[SNew(SButton)
+				.ToolTipText(LOCTEXT("RemoveHint", "从快捷栏移除，武器留在背包"))
+				.IsEnabled_Lambda([this, Index] { return !bRequestPending && !bQuantityOpen && InventorySlotForQuickSlot(Index) != INDEX_NONE; })
+				.OnClicked_Lambda([this, Index] { RemoveQuickSlot(Index); return FReply::Handled(); })[Text(LOCTEXT("RemoveSlot", "×"), 18)]]];
+	}
+	CenterPanel->AddSlot().AutoHeight().Padding(0, 6)[Text(LOCTEXT("QuickHint", "点击切换  /  × 移除\n移除后武器留在背包"), 13, Muted)];
+	auto EquipButtons = SNew(SHorizontalBox);
+	for (int32 Index = 0; Index < 3; ++Index)
+	{
+		EquipButtons->AddSlot().Padding(2, 0)[SNew(SButton).HAlign(HAlign_Center).ContentPadding(FMargin(4, 8))
+			.IsEnabled_Lambda([this] { return CanEquipSelected(); })
+			.OnClicked_Lambda([this, Index] { EquipSelected(Index); return FReply::Handled(); })
+			[Text(FText::Format(LOCTEXT("EquipSlot", "装备 {0}"), FText::AsNumber(Index + 1)), 16, Cyan)]];
 	}
 	auto Details = SNew(SVerticalBox)
 		+ SVerticalBox::Slot().AutoHeight()[Text(LOCTEXT("Details", "物品详情"), 14, Cyan)]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 18, 0, 6)[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailName).Font(Font(26, true)).WrapTextAt(266)]
 		+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailType).Font(Font(17)).ColorAndOpacity(Muted)]
-		+ SVerticalBox::Slot().AutoHeight().Padding(16, 38)[SNew(SBox).HeightOverride(130)
+		+ SVerticalBox::Slot().AutoHeight().Padding(16, 18)[SNew(SBox).HeightOverride(100)
 			[SNew(SOverlay)
 			+ SOverlay::Slot()[SNew(SImage).Image_Lambda([this] { return SlotIcon(SelectedSlot); }).ColorAndOpacity_Lambda([this] { return SlotTint(SelectedSlot); })]
 			+ SOverlay::Slot()[SNew(SInventoryGraphic).Medical_Lambda([this] { return IsMedicalSlot(SelectedSlot); }).Visibility_Lambda([this] { return HasFallbackIcon(SelectedSlot) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })]]]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailStats).Font(Font(17)).ColorAndOpacity(Cyan).WrapTextAt(266)]
 		+ SVerticalBox::Slot().FillHeight(1).Padding(0, 20)[SNew(SScrollBox)
 			+ SScrollBox::Slot()[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailDescription).Font(Font(17)).AutoWrapText(true)]]
+		+ SVerticalBox::Slot().AutoHeight()[EquipButtons]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)[Text(LOCTEXT("EquipHint", "装备到指定槽并拿在手中\n替换的武器仍留在背包"), 13, Muted)]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[SNew(SButton).HAlign(HAlign_Center)
 			.IsEnabled_Lambda([this] { return !bRequestPending && !bQuantityOpen && Definition(SelectedSlot); })
 			.OnClicked_Lambda([this] { BeginDrop(); return FReply::Handled(); })[Text(LOCTEXT("Drop", "丢弃…"), 20, Cyan)]]
@@ -330,6 +349,22 @@ void ULyraInventoryScreen::RefreshInventory()
 	if (SelectedSlot == INDEX_NONE && !DisplayedSlots.IsEmpty())
 	{
 		SelectedSlot = 0; SelectedEntry = DisplayedSlots[0].EntryId;
+	}
+	if (bAwaitingReplication && PendingQuickSlot != INDEX_NONE)
+	{
+		const auto* Bar = GetOwningPlayer()->FindComponentByClass<ULyraQuickBarComponent>();
+		if (Bar && Bar->GetSlots().IsValidIndex(PendingQuickSlot))
+		{
+			const bool Applied = PendingOperation == ELyraInventoryOperation::Unequip
+				? !Bar->GetSlots()[PendingQuickSlot] && Bar->GetActiveSlotIndex() != PendingQuickSlot
+				: Bar->GetSlots()[PendingQuickSlot] == PendingSource.Instance && Bar->GetActiveSlotIndex() == PendingQuickSlot;
+			if (Applied)
+			{
+				bRequestPending = bAwaitingReplication = false;
+				Feedback = PendingOperation == ELyraInventoryOperation::Unequip ? LOCTEXT("Unequipped", "已从快捷栏移除，武器仍在背包") : LOCTEXT("Equipped", "已装备，关闭背包可使用武器");
+			}
+		}
+		return;
 	}
 	if (bAwaitingReplication && DisplayedSlots.IsValidIndex(PendingSource.SlotIndex) && DisplayedSlots.IsValidIndex(PendingTarget.SlotIndex))
 	{
@@ -483,6 +518,7 @@ void ULyraInventoryScreen::Submit(ELyraInventoryOperation Op, const FLyraInvento
 		Feedback = LOCTEXT("Expired", "物品已更新，请重新选择操作"); InvalidateInventory(); return;
 	}
 	PendingOperation = Op; PendingSource = Source; PendingTarget = Target; Quantity = Count;
+	PendingQuickSlot = INDEX_NONE;
 	PendingRequestId = Inventory->GetNextLocalOperationId();
 	bRequestPending = true; bAwaitingReplication = false; RequestStartedAt = FPlatformTime::Seconds();
 	Feedback = Op == ELyraInventoryOperation::Drop ? LOCTEXT("Dropping", "正在丢弃…") : LOCTEXT("Submitting", "正在整理…");
@@ -501,13 +537,47 @@ void ULyraInventoryScreen::OperationCompleted(const FLyraInventoryOperationResul
 	{
 	case ELyraInventoryOperationStatus::InvalidLocation: Feedback = LOCTEXT("DropBlocked", "面前没有安全落点，请移到平坦空地后重试；物品未扣除"); break;
 	case ELyraInventoryOperationStatus::SpawnFailed: Feedback = LOCTEXT("SpawnFailed", "地面物品生成失败，物品未扣除"); break;
-	case ELyraInventoryOperationStatus::NotAllowed: Feedback = LOCTEXT("DropNotAllowed", "当前角色状态无法丢弃，物品未改变"); break;
-	case ELyraInventoryOperationStatus::Incompatible: Feedback = LOCTEXT("Incompatible", "物品状态不同，不能合并"); break;
+	case ELyraInventoryOperationStatus::NotAllowed: Feedback = LOCTEXT("OperationNotAllowed", "当前角色状态无法执行此操作，物品未改变"); break;
+	case ELyraInventoryOperationStatus::Incompatible: Feedback = PendingQuickSlot != INDEX_NONE ? LOCTEXT("NotEquipment", "这件物品无法装备") : LOCTEXT("Incompatible", "物品状态不同，不能合并"); break;
 	case ELyraInventoryOperationStatus::NoSpace: Feedback = LOCTEXT("NoSpace", "目标空间不足，物品未改变"); break;
 	case ELyraInventoryOperationStatus::StaleState:
-	case ELyraInventoryOperationStatus::StaleRequest: Feedback = LOCTEXT("Stale", "物品已更新，请重新拖动"); break;
-	default: Feedback = LOCTEXT("Rejected", "本次整理未成功，物品未改变"); break;
+	case ELyraInventoryOperationStatus::StaleRequest: Feedback = LOCTEXT("StaleOperation", "物品或快捷栏已更新，请重新操作"); break;
+	default: Feedback = LOCTEXT("OperationRejected", "本次操作未成功，物品未改变"); break;
 	}
 	InvalidateInventory();
+}
+
+bool ULyraInventoryScreen::CanEquipSelected() const
+{
+	const auto* Def = Definition(SelectedSlot);
+	const auto* Fragment = Def ? Cast<UInventoryFragment_EquippableItem>(Def->FindFragmentByClass(UInventoryFragment_EquippableItem::StaticClass())) : nullptr;
+	return !bRequestPending && !bQuantityOpen && Fragment && Fragment->EquipmentDefinition && DisplayedSlots[SelectedSlot].StackCount == 1;
+}
+int32 ULyraInventoryScreen::InventorySlotForQuickSlot(int32 QuickSlot) const
+{
+	const auto* Bar = GetOwningPlayer() ? GetOwningPlayer()->FindComponentByClass<ULyraQuickBarComponent>() : nullptr;
+	if (!Bar || !Bar->GetSlots().IsValidIndex(QuickSlot) || !Bar->GetSlots()[QuickSlot]) { return INDEX_NONE; }
+	return DisplayedSlots.IndexOfByPredicate([&](const auto& Slot) { return Slot.Instance == Bar->GetSlots()[QuickSlot]; });
+}
+void ULyraInventoryScreen::EquipSelected(int32 QuickSlot) { if (CanEquipSelected()) { SubmitEquipment(ELyraInventoryOperation::Equip, SelectedSlot, QuickSlot); } }
+void ULyraInventoryScreen::ActivateQuickSlot(int32 QuickSlot) { SubmitEquipment(ELyraInventoryOperation::Activate, InventorySlotForQuickSlot(QuickSlot), QuickSlot); }
+void ULyraInventoryScreen::RemoveQuickSlot(int32 QuickSlot) { SubmitEquipment(ELyraInventoryOperation::Unequip, InventorySlotForQuickSlot(QuickSlot), QuickSlot); }
+void ULyraInventoryScreen::SubmitEquipment(ELyraInventoryOperation Op, int32 SourceSlot, int32 QuickSlot)
+{
+	if (!Inventory || bRequestPending || bQuantityOpen || !DisplayedSlots.IsValidIndex(SourceSlot)) { return; }
+	const auto Current = Inventory->GetSlotSnapshot();
+	if (!Current.IsValidIndex(SourceSlot) || Current[SourceSlot].EntryId != DisplayedSlots[SourceSlot].EntryId
+		|| Current[SourceSlot].StackCount != DisplayedSlots[SourceSlot].StackCount)
+	{
+		Feedback = LOCTEXT("EquipExpired", "物品已更新，请重新选择"); InvalidateInventory(); return;
+	}
+	PendingSource = DisplayedSlots[SourceSlot]; PendingOperation = Op; PendingQuickSlot = QuickSlot;
+	PendingRequestId = Inventory->GetNextLocalOperationId();
+	bRequestPending = true; bAwaitingReplication = false; RequestStartedAt = FPlatformTime::Seconds();
+	Feedback = LOCTEXT("EquipmentPending", "正在更新装备…");
+	if (!Inventory->RequestInventoryOperation(Op, SourceSlot, QuickSlot))
+	{
+		bRequestPending = false; Feedback = LOCTEXT("EquipmentUnavailable", "装备尚未准备好，请稍后重试");
+	}
 }
 #undef LOCTEXT_NAMESPACE

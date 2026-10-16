@@ -4,7 +4,7 @@
 #include "LyraInventoryOperation.generated.h"
 
 UENUM(BlueprintType)
-enum class ELyraInventoryOperation : uint8 { Move, Swap, Split, Merge, Drop };
+enum class ELyraInventoryOperation : uint8 { Move, Swap, Split, Merge, Drop, Equip, Unequip, Activate };
 
 UENUM(BlueprintType)
 enum class ELyraInventoryOperationStatus : uint8
@@ -37,6 +37,11 @@ struct FLyraInventoryOperationRequest
 	// Move/Swap use 0; Split/Merge require an exact positive quantity.
 	UPROPERTY(BlueprintReadWrite, Category=Inventory)
 	int32 Quantity = 0;
+	// Equipment requests address TargetSlot in the quick bar, and compare its complete view.
+	UPROPERTY(BlueprintReadWrite, Category=Inventory)
+	TArray<FGuid> ExpectedQuickBar;
+	UPROPERTY(BlueprintReadWrite, Category=Inventory)
+	int32 ExpectedActiveSlot = INDEX_NONE;
 };
 
 USTRUCT(BlueprintType)

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LyraGameplayAbility_RangedWeapon.h"
+#include "LyraGameplayAbility_Reload.h"
+#include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "Weapons/LyraRangedWeaponInstance.h"
 #include "Physics/LyraCollisionChannels.h"
 #include "LyraLogChannels.h"
@@ -456,6 +458,16 @@ void ULyraGameplayAbility_RangedWeapon::ActivateAbility(const FGameplayAbilitySp
 	// Update the last firing time
 	ULyraRangedWeaponInstance* WeaponData = GetWeaponInstance();
 	check(WeaponData);
+	// Firing interrupts this weapon's reload transaction, not just its animation.
+	// Run on both predicting owner and authority so the server's timer cannot refill later.
+	if (auto* LyraASC = Cast<ULyraAbilitySystemComponent>(MyAbilityComponent))
+	{
+		LyraASC->CancelAbilitiesByFunc([WeaponData](const ULyraGameplayAbility* Ability, FGameplayAbilitySpecHandle)
+		{
+			const auto* Reload = Cast<ULyraGameplayAbility_Reload>(Ability);
+			return Reload && Reload->GetWeaponInstance() == WeaponData;
+		}, true);
+	}
 	WeaponData->UpdateFiringTime();
 
 	Super::ActivateAbility(Handle, ActorInfo, ActivationInfo, TriggerEventData);

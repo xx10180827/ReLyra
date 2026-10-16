@@ -7,6 +7,8 @@ param(
     [switch]$InventoryUI,
     [switch]$InventoryPickup,
     [switch]$InventoryDrop,
+    [switch]$InventoryEquipment,
+    [switch]$InventoryReload,
     [ValidateRange(1024, 65535)]
     [int]$Port = 17777,
     [ValidateRange(30, 900)]
@@ -14,6 +16,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($InventoryReload) { $InventoryEquipment = $true }
+if ($InventoryEquipment) {
+    if ($InventoryDrop -or $InventoryPickup -or $InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules) { throw 'Run equipment scenarios separately.' }
+    $Render = $true
+}
 if ($InventoryDrop) {
     if ($InventoryPickup -or $InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules) { throw 'Run drop scenarios separately from other fixtures.' }
     $Render = $true
@@ -61,6 +68,8 @@ if ($InventoryOperations) { $commonArguments += '-InventoryTestOperations' }
 if ($InventoryUI) { $commonArguments += '-InventoryTestUI' }
 if ($InventoryPickup) { $commonArguments += '-InventoryTestPickup' }
 if ($InventoryDrop) { $commonArguments += '-InventoryTestDrop' }
+if ($InventoryEquipment) { $commonArguments += '-InventoryTestEquipment' }
+if ($InventoryReload) { $commonArguments += '-InventoryTestReload' }
 
 function Read-TestLog([string]$Path) {
     if (Test-Path -LiteralPath $Path) {
@@ -127,7 +136,18 @@ try {
     $inventoryDropPassed = (-not $InventoryDrop) -or (
         (Read-TestLog $hostLog).Contains('INVENTORY_DROP PASS role=Host ' + $dropSummary) -and
         (Read-TestLog $clientLog).Contains('INVENTORY_DROP PASS role=Client ' + $dropSummary))
+    $equipmentSummary = 'ui=10 replace=passed remove=passed move=passed rifle=5/19 shotgun=0/7 remoteActor=visible replay=denied'
+    $inventoryEquipmentPassed = (-not $InventoryEquipment) -or (
+        (Read-TestLog $hostLog).Contains('INVENTORY_EQUIPMENT PASS role=Host ' + $equipmentSummary) -and
+        (Read-TestLog $clientLog).Contains('INVENTORY_EQUIPMENT PASS role=Client ' + $equipmentSummary))
+    $inventoryReloadPassed = (-not $InventoryReload) -or (
+        (Read-TestLog $hostLog).Contains('INVENTORY_RELOAD PASS role=Host cancelled=4/19 normal=23/0 conserved=23') -and
+        (Read-TestLog $clientLog).Contains('INVENTORY_RELOAD PASS role=Client cancelled=4/19 normal=23/0 conserved=23'))
     $report = [ordered]@{
+        inventoryReloadChecked = [bool]$InventoryReload
+        inventoryReloadPassed = $inventoryReloadPassed
+        inventoryEquipmentChecked = [bool]$InventoryEquipment
+        inventoryEquipmentPassed = $inventoryEquipmentPassed
         userAccepted = $false
         inventoryDropChecked = [bool]$InventoryDrop
         inventoryDropPassed = $inventoryDropPassed
@@ -157,10 +177,12 @@ try {
         clientLog = $clientLog
     }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runDirectory 'Result.json') -Encoding utf8
-    if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or -not $inventoryDropPassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
+    if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or -not $inventoryDropPassed -or -not $inventoryEquipmentPassed -or -not $inventoryReloadPassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
         throw "Network smoke test failed. See $runDirectory"
     }
     Write-Output "PASS: two network players and required components initialized. Report: $runDirectory"
+    if ($InventoryReload) { Write-Output 'PASS: firing cancelled reload on both peers, old timer did not refill, and a subsequent normal reload conserved ammo.' }
+    if ($InventoryEquipment) { Write-Output 'PASS: both players equipped, switched, replaced, removed and moved weapons through UI; ammo and remote equipment actors matched.' }
     if ($InventoryRules) { Write-Output 'PASS: inventory quantity rules and final replicated slot data matched.' }
     if ($InventorySnapshots) { Write-Output 'PASS: rebuilt item state and cleared quickbar/equipment references matched on both peers.' }
     if ($InventoryOperations) { Write-Output 'PASS: client RPC move/swap/split/merge, three rejected requests and replicated inventory matched.' }

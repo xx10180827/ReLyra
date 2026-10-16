@@ -312,6 +312,7 @@ private:
 	bool CanRestoreSnapshot(const FLyraInventoryItemSnapshot& Snapshot) const;
 	void RemoveEntryAndReferences(ULyraInventoryItemInstance* Item);
 	FLyraInventoryOperationResult ExecuteDrop(const FLyraInventoryOperationRequest& Request, FLyraInventoryOperationResult Result);
+	FLyraInventoryOperationResult ExecuteEquipmentOperation(const FLyraInventoryOperationRequest& Request, FLyraInventoryOperationResult Result);
 
 	UPROPERTY(Replicated)
 	int32 SlotCapacity = 0;

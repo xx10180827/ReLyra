@@ -252,6 +252,30 @@ void ULyraQuickBarComponent::OnRep_Slots()
 	MessageSystem.BroadcastMessage(TAG_Lyra_QuickBar_Message_SlotsChanged, Message);
 }
 
+bool ULyraQuickBarComponent::ApplyInventorySelection(int32 SlotIndex, ULyraInventoryItemInstance* Item)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots || !Slots.IsValidIndex(SlotIndex)
+		|| !FindEquipmentManager()) { return false; }
+	if (Item && Slots[SlotIndex] == Item && ActiveSlotIndex == SlotIndex && EquippedItem) { return true; }
+	TGuardValue<bool> Guard(bChangingSlots, true);
+	const bool bChangesActive = Item || ActiveSlotIndex == SlotIndex;
+	// Commit references before equipment callbacks. The enclosing inventory guard prevents removal/reentry.
+	if (Item)
+	{
+		for (auto& Slot : Slots) { if (Slot == Item) { Slot = nullptr; } }
+	}
+	Slots[SlotIndex] = Item;
+	if (bChangesActive)
+	{
+		ActiveSlotIndex = Item ? SlotIndex : INDEX_NONE;
+		UnequipItemInSlot();
+		if (Item) { EquipItemInSlot(); }
+	}
+	OnRep_Slots();
+	if (bChangesActive) { OnRep_ActiveSlotIndex(); }
+	return true;
+}
+
 void ULyraQuickBarComponent::OnRep_ActiveSlotIndex()
 {
 	if (!UGameplayMessageSubsystem::HasInstance(this)) { return; }

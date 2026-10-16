@@ -2,6 +2,7 @@
 #include "LyraInventoryManagerComponent.h"
 #include "LyraInventoryItemDefinition.h"
 #include "LyraInventoryItemInstance.h"
+#include "Equipment/LyraQuickBarComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Templates/UnrealTemplate.h"
 
@@ -11,17 +12,30 @@ bool ULyraInventoryManagerComponent::RequestInventoryOperation(ELyraInventoryOpe
 	const auto* Controller = Cast<APlayerController>(GetOwner());
 	if (!Controller || !Controller->IsLocalController() || SlotCapacity <= 0 || NextLocalOperationId == MAX_int64) { return false; }
 	const auto Slots = GetSlotSnapshot();
-	if (!Slots.IsValidIndex(SourceSlot) || !Slots.IsValidIndex(TargetSlot)) { return false; }
+	const bool bEquipment = Operation == ELyraInventoryOperation::Equip || Operation == ELyraInventoryOperation::Unequip || Operation == ELyraInventoryOperation::Activate;
+	if (!Slots.IsValidIndex(SourceSlot) || (!bEquipment && !Slots.IsValidIndex(TargetSlot))) { return false; }
 	FLyraInventoryOperationRequest Request;
 	Request.RequestId = ++NextLocalOperationId;
 	Request.Operation = Operation;
 	Request.SourceSlot = SourceSlot;
 	Request.TargetSlot = TargetSlot;
 	Request.SourceEntryId = Slots[SourceSlot].EntryId;
-	Request.TargetEntryId = Slots[TargetSlot].EntryId;
+	Request.TargetEntryId = bEquipment ? FGuid() : Slots[TargetSlot].EntryId;
 	Request.ExpectedSourceCount = Slots[SourceSlot].StackCount;
-	Request.ExpectedTargetCount = Slots[TargetSlot].StackCount;
+	Request.ExpectedTargetCount = bEquipment ? 0 : Slots[TargetSlot].StackCount;
 	Request.Quantity = Quantity;
+	if (bEquipment)
+	{
+		const auto* Bar = GetOwner()->FindComponentByClass<ULyraQuickBarComponent>();
+		if (!Bar || !Bar->GetSlots().IsValidIndex(TargetSlot)) { return false; }
+		for (const auto* Item : Bar->GetSlots())
+		{
+			const auto* View = Slots.FindByPredicate([Item](const auto& Slot) { return Slot.Instance == Item && Item; });
+			if (Item && !View) { return false; }
+			Request.ExpectedQuickBar.Add(View ? View->EntryId : FGuid());
+		}
+		Request.ExpectedActiveSlot = Bar->GetActiveSlotIndex();
+	}
 	ServerRequestInventoryOperation(Request);
 	return true;
 }
@@ -55,6 +69,10 @@ FLyraInventoryOperationResult ULyraInventoryManagerComponent::ExecuteInventoryOp
 	LastProcessedOperationId = Request.RequestId;
 	Result.LastProcessedRequestId = LastProcessedOperationId;
 	if (Request.Operation == EOperation::Drop) { return ExecuteDrop(Request, Result); }
+	if (Request.Operation == EOperation::Equip || Request.Operation == EOperation::Unequip || Request.Operation == EOperation::Activate)
+	{
+		return ExecuteEquipmentOperation(Request, Result);
+	}
 	if (GetOwner()->IsActorBeingDestroyed() || SlotCapacity <= 0 || Request.SourceSlot < 0 || Request.TargetSlot < 0
 		|| Request.SourceSlot >= SlotCapacity || Request.TargetSlot >= SlotCapacity || Request.SourceSlot == Request.TargetSlot
 		|| uint8(Request.Operation) > uint8(EOperation::Merge)) { return Result; }

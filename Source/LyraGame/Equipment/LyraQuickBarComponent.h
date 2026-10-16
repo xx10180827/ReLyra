@@ -57,6 +57,9 @@ public:
 	virtual void BeginPlay() override;
 
 private:
+	friend class ULyraInventoryManagerComponent;
+	// Called only inside the inventory transaction, after ownership and stale-view validation.
+	bool ApplyInventorySelection(int32 SlotIndex, ULyraInventoryItemInstance* Item);
 	bool bChangingSlots = false;
 	void UnequipItemInSlot();
 	void EquipItemInSlot();

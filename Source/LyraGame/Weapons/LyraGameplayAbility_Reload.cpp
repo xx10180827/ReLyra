@@ -51,8 +51,8 @@ void ULyraGameplayAbility_Reload::ActivateAbility(const FGameplayAbilitySpecHand
 	}
 
 	// Play the mannequin/character montage on the avatar. Its AN_PlayWeaponMontage notify drives the
-	// corresponding AM_Weap_* montage on the equipped gun. Montage interruption is intentionally
-	// not used to cancel reloading in the current single-player scope; ReloadTime remains the source of truth.
+	// corresponding AM_Weap_* montage on the equipped gun. Firing explicitly cancels this ability;
+	// ReloadTime controls completion only while the reload remains active.
 	if (ReloadMontage != nullptr)
 	{
 		if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
@@ -88,9 +88,14 @@ void ULyraGameplayAbility_Reload::ActivateAbility(const FGameplayAbilitySpecHand
 void ULyraGameplayAbility_Reload::EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled)
 {
 	// Cancel any in-flight reload timer before we let the ability end.
+	bReloadComplete = true;
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ReloadTimerHandle);
+	}
+	if (bWasCancelled && ReloadMontage && ActorInfo && ActorInfo->GetAnimInstance())
+	{
+		ActorInfo->GetAnimInstance()->Montage_Stop(0.1f, ReloadMontage);
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -103,7 +108,14 @@ void ULyraGameplayAbility_Reload::OnReloadDelayFinished()
 
 void ULyraGameplayAbility_Reload::FinishReload()
 {
-	if (bReloadComplete)
+	if (bReloadComplete || !IsActive())
+	{
+		return;
+	}
+
+	// The predicting client waits for the server's completion. Sending EndAbility from
+	// the client's timer can end the server instance before its timer transfers ammo.
+	if (!CurrentActorInfo || !CurrentActorInfo->IsNetAuthority())
 	{
 		return;
 	}

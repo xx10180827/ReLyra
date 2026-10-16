@@ -17,6 +17,17 @@ public:
 	virtual void OnTick(float TimeDelta) override;
 
 private:
+	bool TickInventoryReload();
+	bool bVerifyReload = false;
+	bool bReloadVerified = false;
+	int32 ReloadStep = 0;
+	double ReloadAt = 0;
+	bool TickInventoryEquipment(bool bHost);
+	bool bVerifyEquipment = false;
+	bool bEquipmentVerified = false;
+	int32 EquipmentStep = 0;
+	int32 EquipmentUIPhase = 0;
+	double EquipmentUIAt = 0;
 	bool TickInventoryOperations(bool bHost);
 	bool TickInventoryUI(bool bHost);
 	bool TickInventoryPickup(bool bHost);

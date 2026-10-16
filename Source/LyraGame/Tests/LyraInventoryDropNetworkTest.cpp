@@ -37,11 +37,14 @@ bool ULyraInventoryNetworkTest::TickInventoryDrop(bool bHost)
 	const auto Total = [&] { return Inventory->GetTotalItemCountByDefinition(Ammo); };
 	const auto Find = [&](TSubclassOf<ULyraInventoryItemDefinition> Def) -> ALyraWorldPickup*
 	{
+		ALyraWorldPickup* Nearest = nullptr;
 		for (TActorIterator<ALyraWorldPickup> It(World); It; ++It)
 		{
-			if (It->GetPickupState().Definition == Def && It->GetActorLocation().X < 100 && It->GetActorLocation().Y < -800) { return *It; }
+			if (It->GetPickupState().Definition == Def && It->GetActorLocation().X < 100 && It->GetActorLocation().Y < -800
+				&& (!Nearest || FVector::DistSquared(It->GetActorLocation(), Local->GetPawn()->GetActorLocation())
+					< FVector::DistSquared(Nearest->GetActorLocation(), Local->GetPawn()->GetActorLocation()))) { Nearest = *It; }
 		}
-		return nullptr;
+		return Nearest;
 	};
 	const auto Fail = [&](const TCHAR* Reason)
 	{
@@ -144,7 +147,13 @@ bool ULyraInventoryNetworkTest::TickInventoryDrop(bool bHost)
 		if (DropStep >= 6 && DropStep <= 8)
 		{
 			if (!Local->GetPawn()->GetActorLocation().Equals(FVector(-100,-900,92), 1)) { return Fail(TEXT("stationary drop fixture moved")); }
-			if (DropViaUI(Shotgun, 1)) { ++DropStep; } return false;
+			if (DropViaUI(Shotgun, 1))
+			{
+				++DropStep;
+				// The dropper stays fixed. Move the receiver within reach of the whole fan only after all three drops exist.
+				if (DropStep == 9) { Remote->GetPawn()->TeleportTo(FVector(20,-1040,92), FRotator::ZeroRotator); }
+			}
+			return false;
 		}
 		if (Other->GetTotalItemCountByDefinition(Shotgun) != 4 || Find(Shotgun)) { return false; }
 		auto* Done = World->SpawnActor<ALyraWorldPickup>(FVector(50,-1300,80), FRotator::ZeroRotator);

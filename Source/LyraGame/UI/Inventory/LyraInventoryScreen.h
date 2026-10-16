@@ -22,6 +22,10 @@ public:
 	void DropOnSlot(int32 Source, FGuid Entry, int32 Count, int32 Target, bool bSplit);
 	void ConfirmQuantity();
 	void BeginDrop();
+	void EquipSelected(int32 QuickSlot);
+	void ActivateQuickSlot(int32 QuickSlot);
+	void RemoveQuickSlot(int32 QuickSlot);
+	bool CanEquipSelected() const;
 	void CancelQuantity();
 	bool IsRequestPending() const { return bRequestPending; }
 	bool IsQuantityOpen() const { return bQuantityOpen; }
@@ -64,6 +68,8 @@ private:
 	void UnbindInventory();
 	void InvalidateInventory();
 	void RefreshInventory();
+	void SubmitEquipment(ELyraInventoryOperation Op, int32 SourceSlot, int32 QuickSlot);
+	int32 InventorySlotForQuickSlot(int32 QuickSlot) const;
 	void Submit(ELyraInventoryOperation Op, const FLyraInventorySlotView& Source, const FLyraInventorySlotView& Target, int32 Count);
 	UFUNCTION() void OperationCompleted(const FLyraInventoryOperationResult& Result);
 	const ULyraInventoryItemDefinition* Definition(int32 Index) const;
@@ -85,6 +91,7 @@ private:
 	bool bMergeMode = true;
 	int32 Quantity = 1;
 	int64 PendingRequestId = 0;
+	int32 PendingQuickSlot = INDEX_NONE;
 	FLyraInventorySlotView PendingSource;
 	FLyraInventorySlotView PendingTarget;
 	ELyraInventoryOperation PendingOperation = ELyraInventoryOperation::Move;
