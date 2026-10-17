@@ -22,6 +22,8 @@ public:
 	void DropOnSlot(int32 Source, FGuid Entry, int32 Count, int32 Target, bool bSplit);
 	void ConfirmQuantity();
 	void BeginDrop();
+	void UseSelected();
+	bool CanUseSelected() const;
 	void EquipSelected(int32 QuickSlot);
 	void ActivateQuickSlot(int32 QuickSlot);
 	void RemoveQuickSlot(int32 QuickSlot);

@@ -11,5 +11,10 @@ class ALyraInventoryPlayerController : public ALyraPlayerController
 public:
     virtual void Tick(float DeltaTime) override;
 private:
+    UFUNCTION(Server, Reliable)
+    void ServerReadyForUseFixture();
+    bool bUseFixtureRequested = false;
+    bool bUseFixtureReady = false;
     bool bUIFixtureSeeded = false;
+    bool bUseFixtureSeeded = false;
 };

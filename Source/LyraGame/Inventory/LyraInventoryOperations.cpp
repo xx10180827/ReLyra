@@ -69,6 +69,7 @@ FLyraInventoryOperationResult ULyraInventoryManagerComponent::ExecuteInventoryOp
 	LastProcessedOperationId = Request.RequestId;
 	Result.LastProcessedRequestId = LastProcessedOperationId;
 	if (Request.Operation == EOperation::Drop) { return ExecuteDrop(Request, Result); }
+	if (Request.Operation == EOperation::Use) { return ExecuteUse(Request, Result); }
 	if (Request.Operation == EOperation::Equip || Request.Operation == EOperation::Unequip || Request.Operation == EOperation::Activate)
 	{
 		return ExecuteEquipmentOperation(Request, Result);

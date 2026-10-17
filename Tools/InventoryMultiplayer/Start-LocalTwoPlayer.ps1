@@ -1,6 +1,7 @@
 param(
     [string]$EngineRoot,
     [switch]$UIFixture,
+    [switch]$UseFixture,
     [ValidateRange(1024, 65535)]
     [int]$Port = 17777,
     [ValidateRange(60, 900)]
@@ -48,6 +49,7 @@ $commonArguments = @(
 )
 
 if ($UIFixture) { $commonArguments += '-InventoryUIFixture' }
+if ($UseFixture) { $commonArguments += '-InventoryUseFixture' }
 
 function Read-AcceptanceLog([string]$Path) {
     if (Test-Path -LiteralPath $Path) { return [string](Get-Content -LiteralPath $Path -Raw) }
@@ -86,6 +88,7 @@ try {
         clientPassed = $clientReady
         movementChecked = $false
         inventoryUIFixture = [bool]$UIFixture
+        inventoryUseFixture = [bool]$UseFixture
         rendering = $true
         port = $Port
         hostLog = $hostLog
@@ -96,6 +99,10 @@ try {
     Write-Output 'Check that each window sees the other player move. Close CLIENT first, then HOST with Alt+F4.'
     Write-Output 'I opens the inventory. Approach and look at a station item, then press E to pick up. Both players share these finite world items.'
     Write-Output 'The rifle-ammo station contains 1250 rounds to check partial pickup and full inventory; remaining items stay on the ground.'
+    if ($UseFixture) {
+        Write-Output 'USE ACCEPTANCE: each player starts at 50 health with 3 medkits, 80 rifle rounds, 5 shells, a 5/19 rifle and a 0/7 shotgun.'
+        Write-Output 'Press I, equip the matching gun and select a supply, then click Use. Supplies are granted once for this explicit test launch only.'
+    }
     if ($UIFixture) {
         Write-Output 'Inventory UI: press I to open/close. Each player starts with one pistol and 13 test supplies (10 + 3).'
         Write-Output 'Drag to move/swap/merge. Shift+drag selects a quantity. Esc cancels the quantity dialog or closes the inventory.'

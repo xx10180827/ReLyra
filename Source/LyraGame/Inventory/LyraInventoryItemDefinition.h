@@ -21,6 +21,9 @@ enum class ELyraInventoryItemType : uint8
 	Consumable
 };
 
+UENUM(BlueprintType)
+enum class ELyraInventoryUseEffect : uint8 { None, Heal, Ammo };
+
 //////////////////////////////////////////////////////////////////////
 
 // Represents a fragment of an item definition
@@ -60,6 +63,14 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category=Inventory, meta=(ClampMin="1"))
 	int32 MaxStackSize = 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Inventory|Use")
+	ELyraInventoryUseEffect UseEffect = ELyraInventoryUseEffect::None;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Inventory|Use", meta=(ClampMin="0"))
+	float HealingAmount = 25.0f;
+	// Explicit compatibility: no matching by display name or by a client-supplied class.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Inventory|Use")
+	TSoftClassPtr<ULyraInventoryItemDefinition> AmmoWeaponDefinition;
 
 	// Existing equippable definitions remain weapons without rewriting their assets.
 	UFUNCTION(BlueprintPure, Category=Inventory)

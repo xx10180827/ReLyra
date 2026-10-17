@@ -5,6 +5,8 @@
 
 #include "AbilitySystemComponent.h"
 #include "Character/LyraCharacter.h"
+#include "Character/LyraHealthComponent.h"
+#include "Inventory/LyraInventorySupplyDefinitions.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
@@ -39,6 +41,8 @@ void ULyraInventoryNetworkTest::OnInit()
 	bVerifyDrop = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestDrop"));
 	bVerifyEquipment = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestEquipment"));
 	bVerifyReload = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestReload"));
+	bVerifyUse = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestUse"));
+	if (bVerifyUse) { bVerifyEquipment = true; }
 	if (bVerifyReload) { bVerifyEquipment = true; }
 	if (bVerifyUI) { bVerifyOperations = true; }
 	if (bVerifyOperations) { bVerifyRules = bVerifySnapshots = true; }
@@ -144,6 +148,36 @@ void ULyraInventoryNetworkTest::OnTick(float TimeDelta)
 			const auto* Inventory = Controller->FindComponentByClass<ULyraInventoryManagerComponent>();
 			const auto Slots = Inventory->GetSlotSnapshot();
 			bool bDataReady = Inventory->GetSlotCapacity() == 20 && Slots.Num() == 20;
+			if (FParse::Param(FCommandLine::Get(), TEXT("InventoryUseFixture")))
+			{
+				const auto* Health = ULyraHealthComponent::FindHealthComponent(Pawn);
+				bDataReady &= Health && Health->GetHealth() == 50
+					&& Inventory->GetTotalItemCountByDefinition(ULyraMedkitDefinition::StaticClass()) == 3
+					&& Inventory->GetTotalItemCountByDefinition(ULyraRifleAmmoDefinition::StaticClass()) == 80
+					&& Inventory->GetTotalItemCountByDefinition(ULyraShellsDefinition::StaticClass()) == 5;
+				int32 Guns = 0;
+				for (const auto& S : Slots)
+				{
+					if (!S.Instance || !S.Instance->GetItemDef()) { continue; }
+					const FString Path = S.Instance->GetItemDef()->GetPathName();
+					if (Path == TEXT("/Game/WeaponSystem/Weapons/Rifle/ID_WS_Rifle.ID_WS_Rifle_C") || Path == TEXT("/Game/WeaponSystem/Weapons/Shotgun/ID_WS_Shotgun.ID_WS_Shotgun_C"))
+					{
+						const bool Rifle = Path.Contains(TEXT("/Rifle/"));
+						bDataReady &= S.StackCount == 1 && S.Instance->GetStatTagStackCount(FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.MagazineAmmo"))) == (Rifle ? 5 : 0)
+							&& S.Instance->GetStatTagStackCount(FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.SpareAmmo"))) == (Rifle ? 19 : 7);
+						++Guns;
+					}
+				}
+				bDataReady &= Guns == 2;
+				if (!bDataReady && Now == LastDiagnosticAt)
+				{
+					UE_LOG(LogTemp, Display, TEXT("INVENTORY_USE_FIXTURE waiting role=%s health=%.1f medkits=%d ammo=%d shells=%d guns=%d"),
+						*ExpectedRole, Health ? Health->GetHealth() : -1.0f,
+						Inventory->GetTotalItemCountByDefinition(ULyraMedkitDefinition::StaticClass()),
+						Inventory->GetTotalItemCountByDefinition(ULyraRifleAmmoDefinition::StaticClass()),
+						Inventory->GetTotalItemCountByDefinition(ULyraShellsDefinition::StaticClass()), Guns);
+				}
+			}
 			int32 Occupied = 0;
 			TSet<FGuid> EntryIds;
 			for (int32 SlotIndex = 0; SlotIndex < Slots.Num(); ++SlotIndex)
@@ -310,6 +344,7 @@ void ULyraInventoryNetworkTest::OnTick(float TimeDelta)
 	if (bVerifyDrop && !bDropVerified && !TickInventoryDrop(bHost)) { ReadyAt = 0.0; return; }
 	if (bVerifyEquipment && !bEquipmentVerified && !TickInventoryEquipment(bHost)) { ReadyAt = 0.0; return; }
 	if (bVerifyReload && !bReloadVerified && !TickInventoryReload()) { ReadyAt = 0.0; return; }
+	if (bVerifyUse && !bUseVerified && !TickInventoryUse(bHost)) { ReadyAt = 0.0; return; }
 	if (ReadyAt == 0.0)
 	{
 		ReadyAt = Now;

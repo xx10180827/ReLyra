@@ -313,6 +313,7 @@ private:
 	void RemoveEntryAndReferences(ULyraInventoryItemInstance* Item);
 	FLyraInventoryOperationResult ExecuteDrop(const FLyraInventoryOperationRequest& Request, FLyraInventoryOperationResult Result);
 	FLyraInventoryOperationResult ExecuteEquipmentOperation(const FLyraInventoryOperationRequest& Request, FLyraInventoryOperationResult Result);
+	FLyraInventoryOperationResult ExecuteUse(const FLyraInventoryOperationRequest& Request, FLyraInventoryOperationResult Result);
 
 	UPROPERTY(Replicated)
 	int32 SlotCapacity = 0;

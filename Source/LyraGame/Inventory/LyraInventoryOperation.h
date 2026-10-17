@@ -4,13 +4,14 @@
 #include "LyraInventoryOperation.generated.h"
 
 UENUM(BlueprintType)
-enum class ELyraInventoryOperation : uint8 { Move, Swap, Split, Merge, Drop, Equip, Unequip, Activate };
+enum class ELyraInventoryOperation : uint8 { Move, Swap, Split, Merge, Drop, Equip, Unequip, Activate, Use };
 
 UENUM(BlueprintType)
 enum class ELyraInventoryOperationStatus : uint8
 {
 	Success, NotAuthority, Busy, InvalidRequest, StaleRequest, StaleState,
-	InvalidQuantity, TargetOccupied, TargetEmpty, Incompatible, NoSpace, NotAllowed, InvalidLocation, SpawnFailed
+	InvalidQuantity, TargetOccupied, TargetEmpty, Incompatible, NoSpace, NotAllowed, InvalidLocation, SpawnFailed,
+	FullHealth, ReserveFull, WeaponMismatch, EffectFailed
 };
 
 /** An optimistic request for this inventory only; no client-supplied instance or inventory pointer. */

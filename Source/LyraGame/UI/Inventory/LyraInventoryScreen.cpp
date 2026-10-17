@@ -7,6 +7,8 @@
 #include "Inventory/LyraInventoryItemDefinition.h"
 #include "Inventory/InventoryFragment_QuickBarIcon.h"
 #include "Inventory/InventoryFragment_EquippableItem.h"
+#include "Character/LyraHealthComponent.h"
+#include "GameFramework/Pawn.h"
 #include "Equipment/LyraQuickBarComponent.h"
 #include "Equipment/LyraEquipmentDefinition.h"
 #include "CommonUIExtensions.h"
@@ -204,7 +206,11 @@ TSharedRef<SWidget> ULyraInventoryScreen::RebuildWidget()
 		+ SVerticalBox::Slot().FillHeight(1).Padding(0, 20)[SNew(SScrollBox)
 			+ SScrollBox::Slot()[SNew(STextBlock).Text_UObject(this, &ThisClass::DetailDescription).Font(Font(17)).AutoWrapText(true)]]
 		+ SVerticalBox::Slot().AutoHeight()[EquipButtons]
-		+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)[Text(LOCTEXT("EquipHint", "装备到指定槽并拿在手中\n替换的武器仍留在背包"), 13, Muted)]
+		+ SVerticalBox::Slot().AutoHeight().Padding(0, 4)[SNew(SButton).HAlign(HAlign_Center)
+			.Visibility_Lambda([this] { const auto* Def = Definition(SelectedSlot); return Def && Def->UseEffect != ELyraInventoryUseEffect::None ? EVisibility::Visible : EVisibility::Collapsed; })
+			.IsEnabled_Lambda([this] { return CanUseSelected(); })
+			.OnClicked_Lambda([this] { UseSelected(); return FReply::Handled(); })
+			[Text(LOCTEXT("UseItem", "使用"), 20, Cyan)]]
 		+ SVerticalBox::Slot().AutoHeight().Padding(0, 8)[SNew(SButton).HAlign(HAlign_Center)
 			.IsEnabled_Lambda([this] { return !bRequestPending && !bQuantityOpen && Definition(SelectedSlot); })
 			.OnClicked_Lambda([this] { BeginDrop(); return FReply::Handled(); })[Text(LOCTEXT("Drop", "丢弃…"), 20, Cyan)]]
@@ -376,9 +382,15 @@ void ULyraInventoryScreen::RefreshInventory()
 		case ELyraInventoryOperation::Swap: Applied = A.EntryId == PendingTarget.EntryId && B.EntryId == PendingSource.EntryId; break;
 		case ELyraInventoryOperation::Split: Applied = A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity && B.Instance && B.StackCount == Quantity; break;
 		case ELyraInventoryOperation::Merge: Applied = A.StackCount == PendingSource.StackCount - Quantity && B.EntryId == PendingTarget.EntryId && B.StackCount == PendingTarget.StackCount + Quantity; break;
+		case ELyraInventoryOperation::Use:
 		case ELyraInventoryOperation::Drop: Applied = Quantity == PendingSource.StackCount ? !A.EntryId.IsValid() : A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity; break;
 		}
-		if (Applied) { bRequestPending = bAwaitingReplication = false; Feedback = PendingOperation == ELyraInventoryOperation::Drop ? LOCTEXT("Dropped", "已丢弃到面前，关闭背包可按 E 拾取") : LOCTEXT("Done", "整理完成"); }
+		if (Applied)
+		{
+			bRequestPending = bAwaitingReplication = false;
+			Feedback = PendingOperation == ELyraInventoryOperation::Use ? FText::Format(LOCTEXT("Used", "使用成功，消耗 {0} 个／发"), FText::AsNumber(Quantity))
+				: PendingOperation == ELyraInventoryOperation::Drop ? LOCTEXT("Dropped", "已丢弃到面前，关闭背包可按 E 拾取") : LOCTEXT("Done", "整理完成");
+		}
 	}
 }
 
@@ -425,6 +437,17 @@ FText ULyraInventoryScreen::DetailStats() const
 {
 	const auto* Def = Definition(SelectedSlot); if (!Def) { return FText(); }
 	FString Value = FString::Printf(TEXT("数量  %d     堆叠上限  %d"), DisplayedSlots[SelectedSlot].StackCount, Def->GetMaxStackSize());
+	if (Def->UseEffect == ELyraInventoryUseEffect::Heal)
+	{
+		const auto* Health = GetOwningPlayerPawn() ? ULyraHealthComponent::FindHealthComponent(GetOwningPlayerPawn()) : nullptr;
+		if (Health) { Value += FString::Printf(TEXT("\n生命  %.0f / %.0f     恢复  %.0f"), Health->GetHealth(), Health->GetMaxHealth(), Def->HealingAmount); }
+	}
+	if (Def->UseEffect == ELyraInventoryUseEffect::Ammo)
+	{
+		const auto* Bar = GetOwningPlayer() ? GetOwningPlayer()->FindComponentByClass<ULyraQuickBarComponent>() : nullptr;
+		const auto* Item = Bar ? Bar->GetActiveSlotItem() : nullptr;
+		if (Item && Item->GetItemDef()) { Value += FString::Printf(TEXT("\n手持：%s  备弹：%d"), *GetDefault<ULyraInventoryItemDefinition>(Item->GetItemDef())->DisplayName.ToString(), Item->GetStatTagStackCount(FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.SpareAmmo")))); }
+	}
 	if (Def->GetInventoryItemType() == ELyraInventoryItemType::Weapon)
 	{
 		const auto* Item = DisplayedSlots[SelectedSlot].Instance.Get();
@@ -521,7 +544,7 @@ void ULyraInventoryScreen::Submit(ELyraInventoryOperation Op, const FLyraInvento
 	PendingQuickSlot = INDEX_NONE;
 	PendingRequestId = Inventory->GetNextLocalOperationId();
 	bRequestPending = true; bAwaitingReplication = false; RequestStartedAt = FPlatformTime::Seconds();
-	Feedback = Op == ELyraInventoryOperation::Drop ? LOCTEXT("Dropping", "正在丢弃…") : LOCTEXT("Submitting", "正在整理…");
+	Feedback = Op == ELyraInventoryOperation::Use ? LOCTEXT("Using", "正在使用…") : Op == ELyraInventoryOperation::Drop ? LOCTEXT("Dropping", "正在丢弃…") : LOCTEXT("Submitting", "正在整理…");
 	// Set pending state first: a listen-server owner's result can be synchronous.
 	if (!Inventory->RequestInventoryOperation(Op, Source.SlotIndex, Target.SlotIndex, Count))
 	{
@@ -531,10 +554,18 @@ void ULyraInventoryScreen::Submit(ELyraInventoryOperation Op, const FLyraInvento
 void ULyraInventoryScreen::OperationCompleted(const FLyraInventoryOperationResult& Result)
 {
 	if (!bRequestPending || Result.RequestId != PendingRequestId) { return; }
-	if (Result.Status == ELyraInventoryOperationStatus::Success) { bAwaitingReplication = true; InvalidateInventory(); return; }
+	if (Result.Status == ELyraInventoryOperationStatus::Success)
+	{
+		if (PendingOperation == ELyraInventoryOperation::Use) { Quantity = Result.MovedCount; }
+		bAwaitingReplication = true; InvalidateInventory(); return;
+	}
 	bRequestPending = bAwaitingReplication = false;
 	switch (Result.Status)
 	{
+	case ELyraInventoryOperationStatus::FullHealth: Feedback = LOCTEXT("FullHealth", "生命已满，医疗包未消耗"); break;
+	case ELyraInventoryOperationStatus::ReserveFull: Feedback = LOCTEXT("ReserveFull", "当前武器备弹已满，弹药未消耗"); break;
+	case ELyraInventoryOperationStatus::WeaponMismatch: Feedback = LOCTEXT("WeaponMismatch", "请先装备对应类型的武器，弹药未消耗"); break;
+	case ELyraInventoryOperationStatus::EffectFailed: Feedback = LOCTEXT("EffectFailed", "治疗未生效，医疗包未消耗"); break;
 	case ELyraInventoryOperationStatus::InvalidLocation: Feedback = LOCTEXT("DropBlocked", "面前没有安全落点，请移到平坦空地后重试；物品未扣除"); break;
 	case ELyraInventoryOperationStatus::SpawnFailed: Feedback = LOCTEXT("SpawnFailed", "地面物品生成失败，物品未扣除"); break;
 	case ELyraInventoryOperationStatus::NotAllowed: Feedback = LOCTEXT("OperationNotAllowed", "当前角色状态无法执行此操作，物品未改变"); break;
@@ -545,6 +576,27 @@ void ULyraInventoryScreen::OperationCompleted(const FLyraInventoryOperationResul
 	default: Feedback = LOCTEXT("OperationRejected", "本次操作未成功，物品未改变"); break;
 	}
 	InvalidateInventory();
+}
+
+bool ULyraInventoryScreen::CanUseSelected() const
+{
+	const auto* Def = Definition(SelectedSlot);
+	return Inventory && !bRequestPending && !bQuantityOpen && Def && Def->UseEffect != ELyraInventoryUseEffect::None;
+}
+
+void ULyraInventoryScreen::UseSelected()
+{
+	if (!CanUseSelected()) { return; }
+	const auto* Def = Definition(SelectedSlot);
+	int32 Target = SelectedSlot;
+	if (Def->UseEffect == ELyraInventoryUseEffect::Ammo)
+	{
+		const auto* Bar = GetOwningPlayer()->FindComponentByClass<ULyraQuickBarComponent>();
+		Target = Bar ? InventorySlotForQuickSlot(Bar->GetActiveSlotIndex()) : INDEX_NONE;
+		if (Target == INDEX_NONE) { Feedback = LOCTEXT("UseNeedsWeapon", "请先装备对应类型的武器，弹药未消耗"); return; }
+	}
+	Submit(ELyraInventoryOperation::Use, DisplayedSlots[SelectedSlot], DisplayedSlots[Target],
+		Def->UseEffect == ELyraInventoryUseEffect::Heal ? 1 : DisplayedSlots[SelectedSlot].StackCount);
 }
 
 bool ULyraInventoryScreen::CanEquipSelected() const
