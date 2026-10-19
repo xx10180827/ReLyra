@@ -25,6 +25,8 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "UnrealClient.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 
 void ULyraInventoryNetworkTest::OnInit()
 {
@@ -41,6 +43,8 @@ void ULyraInventoryNetworkTest::OnInit()
 	bVerifyDrop = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestDrop"));
 	bVerifyEquipment = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestEquipment"));
 	bVerifyReload = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestReload"));
+	bVerifyWeaponSync = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestWeaponSync"));
+	if (bVerifyWeaponSync) { bVerifyReload = true; }
 	bVerifyUse = FParse::Param(FCommandLine::Get(), TEXT("InventoryTestUse"));
 	if (bVerifyUse) { bVerifyEquipment = true; }
 	if (bVerifyReload) { bVerifyEquipment = true; }
@@ -343,7 +347,30 @@ void ULyraInventoryNetworkTest::OnTick(float TimeDelta)
 	if (bVerifyPickup && !bPickupVerified && !TickInventoryPickup(bHost)) { ReadyAt = 0.0; return; }
 	if (bVerifyDrop && !bDropVerified && !TickInventoryDrop(bHost)) { ReadyAt = 0.0; return; }
 	if (bVerifyEquipment && !bEquipmentVerified && !TickInventoryEquipment(bHost)) { ReadyAt = 0.0; return; }
+	if (bVerifyWeaponSync)
+	{
+		if (!bNetworkSimulationSet)
+		{
+			FPacketSimulationSettings Settings;
+			FParse::Value(FCommandLine::Get(), TEXT("InventoryPacketLag="), Settings.PktLag);
+			FParse::Value(FCommandLine::Get(), TEXT("InventoryPacketLoss="), Settings.PktLoss);
+			World->GetNetDriver()->SetPacketSimulationSettings(Settings);
+			bNetworkSimulationSet = true;
+			UE_LOG(LogTemp, Display, TEXT("WEAPON_SYNC NETWORK role=%s lag=%d loss=%d"), *ExpectedRole, Settings.PktLag, Settings.PktLoss);
+		}
+		for (TActorIterator<ALyraCharacter> It(World); It; ++It)
+		{
+			if (It->IsLocallyControlled() || !It->GetMesh()->GetAnimInstance()) { continue; }
+			const auto* Montage = It->GetMesh()->GetAnimInstance()->GetCurrentActiveMontage();
+			if (Montage && Montage->GetName().Contains(TEXT("Reload")))
+			{
+				if (!bObservedRemoteReload) { UE_LOG(LogTemp, Display, TEXT("WEAPON_SYNC REMOTE_RELOAD role=%s montage=%s"), *ExpectedRole, *Montage->GetName()); }
+				bObservedRemoteReload = true;
+			}
+		}
+	}
 	if (bVerifyReload && !bReloadVerified && !TickInventoryReload()) { ReadyAt = 0.0; return; }
+	if (bVerifyWeaponSync && !bWeaponSyncVerified && !TickWeaponSync()) { ReadyAt = 0.0; return; }
 	if (bVerifyUse && !bUseVerified && !TickInventoryUse(bHost)) { ReadyAt = 0.0; return; }
 	if (ReadyAt == 0.0)
 	{

@@ -11,6 +11,7 @@
 #include "GameFramework/Pawn.h"
 #include "Character/LyraHealthComponent.h"
 #include "GameplayEffect.h"
+
 void ALyraInventoryPlayerController::ServerReadyForUseFixture_Implementation()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("InventoryUseFixture"))) { bUseFixtureReady = true; }

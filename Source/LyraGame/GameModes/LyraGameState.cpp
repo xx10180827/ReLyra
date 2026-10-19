@@ -87,12 +87,15 @@ void ALyraGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ThisClass, ServerFPS);
+	DOREPLIFETIME(ThisClass, bIsLanRoom);
+	DOREPLIFETIME(ThisClass, RoomRoundClock);
 	DOREPLIFETIME_CONDITION(ThisClass, RecorderPlayerState, COND_ReplayOnly);
 }
 
 void ALyraGameState::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	TickRoomRoundClock();
 
 	if (GetLocalRole() == ROLE_Authority)
 	{

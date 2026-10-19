@@ -17,6 +17,15 @@ public:
 	virtual void OnTick(float TimeDelta) override;
 
 private:
+	bool TickWeaponSync();
+	bool bVerifyWeaponSync = false;
+	bool bWeaponSyncVerified = false;
+	bool bNetworkSimulationSet = false;
+	bool bObservedRemoteReload = false;
+	int32 WeaponSyncStep = 0;
+	int32 WeaponSyncShots = 0;
+	int32 WeaponSyncPhase = 0;
+	double WeaponSyncAt = 0;
 	bool TickInventoryUse(bool bHost);
 	bool bVerifyUse = false;
 	bool bUseVerified = false;

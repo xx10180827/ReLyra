@@ -10,6 +10,17 @@
 
 #include "Kismet/GameplayStatics.h"
 
+FString ALyraInventoryGameMode::InitNewPlayer(APlayerController* PC, const FUniqueNetIdRepl& ID, const FString& Options, const FString& Portal)
+{
+	// An omitted choice retains Lyra's original automatic assignment.
+	if (auto* InventoryPC = Cast<ALyraInventoryPlayerController>(PC))
+	{
+		const FString Team = UGameplayStatics::ParseOption(Options, TEXT("RoomTeam"));
+		if (Team == TEXT("1") || Team == TEXT("2")) { InventoryPC->RequestedRoomTeam = FCString::Atoi(*Team); }
+	}
+	return Super::InitNewPlayer(PC, ID, Options, Portal);
+}
+
 void ALyraInventoryGameSession::InitOptions(const FString& Options)
 {
 	Super::InitOptions(Options);

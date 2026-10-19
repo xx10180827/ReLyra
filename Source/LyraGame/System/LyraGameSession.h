@@ -17,6 +17,7 @@ class ALyraGameSession : public AGameSession
 public:
 
 	ALyraGameSession(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual void InitOptions(const FString& Options) override;
 
 protected:
 

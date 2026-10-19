@@ -42,6 +42,7 @@ protected:
 	TObjectPtr<UAnimMontage> ReloadMontage = nullptr;
 
 private:
+	void OnReloadMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 	// Called when the reload delay has elapsed.
 	UFUNCTION()
 	void OnReloadDelayFinished();

@@ -10,6 +10,7 @@
 namespace UE::GameFeatures { struct FResult; }
 
 class ULyraExperienceDefinition;
+class UGameFeatureAction;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnLyraExperienceLoaded, const ULyraExperienceDefinition* /*Experience*/);
 
@@ -65,6 +66,9 @@ public:
 	bool IsExperienceLoaded() const;
 
 private:
+	// Per-world action copies allow room-specific adaptation without mutating assets/CDOs.
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UGameFeatureAction>> ActivatedActions;
 	UFUNCTION()
 	void OnRep_CurrentExperience();
 

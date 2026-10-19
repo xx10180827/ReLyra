@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LyraExperienceManagerComponent.h"
+#include "GameFeatureAction_AddComponents.h"
+#include "GameModes/LyraGameMode.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "LyraExperienceDefinition.h"
@@ -317,12 +319,30 @@ void ULyraExperienceManagerComponent::OnExperienceFullLoadCompleted()
 		Context.SetRequiredWorldContextHandle(ExistingWorldContext->ContextHandle);
 	}
 
-	auto ActivateListOfActions = [&Context](const TArray<UGameFeatureAction*>& ActionList)
+	auto ActivateListOfActions = [this, &Context](const TArray<UGameFeatureAction*>& ActionList)
 	{
 		for (UGameFeatureAction* Action : ActionList)
 		{
 			if (Action != nullptr)
 			{
+				const auto* Mode = GetWorld()->GetAuthGameMode<ALyraGameMode>();
+				if (Mode && Mode->IsLanRoom())
+				{
+					if (auto* Components = Cast<UGameFeatureAction_AddComponents>(Action))
+					{
+						const auto IsLocalPlayerSpawner = [](const FGameFeatureComponentEntry& Entry)
+						{
+							return Entry.ComponentClass.ToSoftObjectPath().ToString() == TEXT("/TopDownArena/Game/Modes/B_TopDownArena_GameComponent_SpawnLocalPlayers.B_TopDownArena_GameComponent_SpawnLocalPlayers_C");
+						};
+						if (Components->ComponentList.ContainsByPredicate(IsLocalPlayerSpawner))
+						{
+							auto* RoomComponents = DuplicateObject<UGameFeatureAction_AddComponents>(Components, this);
+							RoomComponents->ComponentList.RemoveAll(IsLocalPlayerSpawner);
+							Action = RoomComponents;
+						}
+					}
+				}
+				ActivatedActions.Add(Action);
 				//@TODO: The fact that these don't take a world are potentially problematic in client-server PIE
 				// The current behavior matches systems like gameplay tags where loading and registering apply to the entire process,
 				// but actually applying the results to actors is restricted to a specific world
@@ -421,14 +441,7 @@ void ULyraExperienceManagerComponent::EndPlay(const EEndPlayReason::Type EndPlay
 			}
 		};
 
-		DeactivateListOfActions(CurrentExperience->Actions);
-		for (const TObjectPtr<ULyraExperienceActionSet>& ActionSet : CurrentExperience->ActionSets)
-		{
-			if (ActionSet != nullptr)
-			{
-				DeactivateListOfActions(ActionSet->Actions);
-			}
-		}
+		DeactivateListOfActions(ActivatedActions);
 
 		NumExpectedPausers = Context.GetNumPausers();
 
@@ -462,6 +475,7 @@ void ULyraExperienceManagerComponent::OnAllActionsDeactivated()
 	//@TODO: We actually only deactivated and didn't fully unload...
 	LoadState = ELyraExperienceLoadState::Unloaded;
 	CurrentExperience = nullptr;
+	ActivatedActions.Reset();
 	//@TODO:	GEngine->ForceGarbageCollection(true);
 }
 

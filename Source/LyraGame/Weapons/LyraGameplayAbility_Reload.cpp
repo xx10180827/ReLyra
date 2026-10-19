@@ -7,6 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "TimerManager.h"
+#include "AbilitySystemComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraGameplayAbility_Reload)
 
@@ -50,26 +51,21 @@ void ULyraGameplayAbility_Reload::ActivateAbility(const FGameplayAbilitySpecHand
 		return;
 	}
 
-	// Play the mannequin/character montage on the avatar. Its AN_PlayWeaponMontage notify drives the
-	// corresponding AM_Weap_* montage on the equipped gun. Firing explicitly cancels this ability;
-	// ReloadTime controls completion only while the reload remains active.
-	if (ReloadMontage != nullptr)
+	// GAS predicts locally and replicates the character montage to observers. The
+	// existing animation notify then drives the equipped weapon's montage.
+	const float ReloadDuration = WeaponData->GetReloadTime();
+	if (ReloadMontage && ActorInfo->GetAnimInstance())
 	{
-		if (ACharacter* Character = Cast<ACharacter>(GetAvatarActorFromActorInfo()))
+		auto* ASC = ActorInfo->AbilitySystemComponent.Get();
+		const float Rate = ReloadDuration > 0 ? ReloadMontage->GetPlayLength() / ReloadDuration : 1.0f;
+		if (ASC && ASC->PlayMontage(this, ActivationInfo, ReloadMontage, Rate) > 0)
 		{
-			if (USkeletalMeshComponent* Mesh = Character->GetMesh())
-			{
-				if (UAnimInstance* AnimInstance = Mesh->GetAnimInstance())
-				{
-					AnimInstance->Montage_Play(ReloadMontage);
-				}
-			}
+			if (!IsActive()) { return; }
+			FOnMontageBlendingOutStarted Interrupted;
+			Interrupted.BindUObject(this, &ThisClass::OnReloadMontageBlendingOut);
+			ActorInfo->GetAnimInstance()->Montage_SetBlendingOutDelegate(Interrupted, ReloadMontage);
 		}
 	}
-
-	// Schedule the finite-reserve ammo transfer after the configured reload duration.
-	const float ReloadDuration = WeaponData->GetReloadTime();
-
 	if (ReloadDuration <= 0.0f)
 	{
 		OnReloadDelayFinished();
@@ -93,9 +89,10 @@ void ULyraGameplayAbility_Reload::EndAbility(const FGameplayAbilitySpecHandle Ha
 	{
 		World->GetTimerManager().ClearTimer(ReloadTimerHandle);
 	}
-	if (bWasCancelled && ReloadMontage && ActorInfo && ActorInfo->GetAnimInstance())
+	if (bWasCancelled && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		ActorInfo->GetAnimInstance()->Montage_Stop(0.1f, ReloadMontage);
+		auto* ASC = ActorInfo->AbilitySystemComponent.Get();
+		if (ASC->GetAnimatingAbility() == this) { ASC->CurrentMontageStop(0.1f); }
 	}
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
@@ -104,6 +101,14 @@ void ULyraGameplayAbility_Reload::EndAbility(const FGameplayAbilitySpecHandle Ha
 void ULyraGameplayAbility_Reload::OnReloadDelayFinished()
 {
 	FinishReload();
+}
+
+void ULyraGameplayAbility_Reload::OnReloadMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted && !bReloadComplete && IsActive())
+	{
+		CancelAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true);
+	}
 }
 
 void ULyraGameplayAbility_Reload::FinishReload()

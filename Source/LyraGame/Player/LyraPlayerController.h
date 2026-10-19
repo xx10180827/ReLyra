@@ -20,6 +20,7 @@ class IInputInterface;
 class ULyraAbilitySystemComponent;
 class ULyraSettingsShared;
 class ULyraInventoryScreen;
+class ULyraRoomScreen;
 class UObject;
 class UPlayer;
 struct FFrame;
@@ -147,6 +148,13 @@ protected:
 	bool bHideViewTargetPawnNextFrame = false;
 public:
 	void ToggleInventory();
+	void ToggleRoomMenu();
+	// Server-only entry selection. Never changed by an in-room RPC.
+	int32 RequestedRoomTeam = INDEX_NONE;
+	UFUNCTION(Server, Reliable) void ServerChooseRoomTeam(int32 Team);
+	UFUNCTION(Client, Reliable) void ClientRoomTeamResult(bool bSuccess, const FText& Message);
+	FText GetRoomTeamFeedback() const { return RoomTeamFeedback; }
+	ULyraRoomScreen* GetRoomScreen() const { return RoomScreen; }
 	ULyraInventoryScreen* GetInventoryScreen() const { return InventoryScreen; }
 	void PickupFocusedItem();
 	int64 RequestPickup(ALyraWorldPickup* Pickup);
@@ -169,6 +177,8 @@ private:
 	double PickupFeedbackUntil = 0;
 	double NextPickupScan = 0;
 	UPROPERTY(Transient) TObjectPtr<ULyraInventoryScreen> InventoryScreen;
+	UPROPERTY(Transient) TObjectPtr<ULyraRoomScreen> RoomScreen;
+	FText RoomTeamFeedback;
 	TWeakObjectPtr<APawn> InventoryPawn;
 
 

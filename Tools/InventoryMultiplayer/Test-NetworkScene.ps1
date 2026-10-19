@@ -1,4 +1,7 @@
 param(
+	[switch]$WeaponSync,
+	[ValidateRange(0, 500)] [int]$PacketLag = 0,
+	[ValidateRange(0, 5)] [int]$PacketLoss = 0,
     [string]$EngineRoot,
     [switch]$Render,
     [switch]$InventoryRules,
@@ -18,6 +21,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($WeaponSync) { $InventoryReload = $true }
+if (($PacketLag -gt 0 -or $PacketLoss -gt 0) -and -not $WeaponSync) { throw 'Network simulation requires WeaponSync.' }
 if ($UseFixture -and ($InventoryUse -or $InventoryReload -or $InventoryEquipment -or $InventoryDrop -or $InventoryPickup -or $InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules)) { throw 'Run the manual use fixture check separately.' }
 if ($InventoryUse) {
     if ($InventoryReload) { throw 'Run use and reload fixtures separately.' }
@@ -78,6 +83,7 @@ if ($InventoryDrop) { $commonArguments += '-InventoryTestDrop' }
 if ($InventoryEquipment) { $commonArguments += '-InventoryTestEquipment' }
 if ($InventoryReload) { $commonArguments += '-InventoryTestReload' }
 if ($InventoryUse) { $commonArguments += '-InventoryTestUse' }
+if ($WeaponSync) { $commonArguments += @('-InventoryTestWeaponSync', "-InventoryPacketLag=$PacketLag", "-InventoryPacketLoss=$PacketLoss") }
 if ($UseFixture) { $commonArguments += '-InventoryUseFixture' }
 
 function Read-TestLog([string]$Path) {
@@ -157,6 +163,10 @@ try {
         (Read-TestLog $hostLog).Contains('INVENTORY_USE PASS role=Host ' + $useSummary) -and
         (Read-TestLog $clientLog).Contains('INVENTORY_USE PASS role=Client ' + $useSummary))
     $report = [ordered]@{
+        weaponSyncChecked = [bool]$WeaponSync
+        weaponSyncPassed = ((-not $WeaponSync) -or ((Read-TestLog $hostLog).Contains('WEAPON_SYNC PASS role=Host ') -and (Read-TestLog $clientLog).Contains('WEAPON_SYNC PASS role=Client ')))
+        packetLagMs = $PacketLag
+        packetLossPercent = $PacketLoss
         inventoryUseChecked = [bool]$InventoryUse
         useFixtureChecked = [bool]$UseFixture
         inventoryUsePassed = $inventoryUsePassed
@@ -193,10 +203,12 @@ try {
         clientLog = $clientLog
     }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runDirectory 'Result.json') -Encoding utf8
+    if (-not $report.weaponSyncPassed) { throw "Weapon sync checks failed. See $runDirectory" }
     if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or -not $inventoryDropPassed -or -not $inventoryEquipmentPassed -or -not $inventoryReloadPassed -or -not $inventoryUsePassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
         throw "Network smoke test failed. See $runDirectory"
     }
     Write-Output "PASS: two network players and required components initialized. Report: $runDirectory"
+    if ($WeaponSync) { Write-Output "PASS: rifle and shotgun finite ammo, switch-cancelled reload, authority and remote reload montage; packet lag $PacketLag ms, loss $PacketLoss percent." }
     if ($UseFixture) { Write-Output 'PASS: both manual acceptance players received 50 health, three medkits, both ammo types and two weapons with the intended state.' }
     if ($InventoryUse) { Write-Output 'PASS: both players used medkits and matching ammo through UI; partial top-ups conserved quantities and full/mismatched/replayed uses were denied.' }
     if ($InventoryReload) { Write-Output 'PASS: firing cancelled reload on both peers, old timer did not refill, and a subsequent normal reload conserved ammo.' }

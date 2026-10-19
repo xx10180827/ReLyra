@@ -99,6 +99,8 @@ void ULyraRangedWeaponInstance::ConsumeAmmo(int32 Amount)
 
 int32 ULyraRangedWeaponInstance::ReloadAmmo()
 {
+	// Predicted presentation must never transfer persistent inventory ammo.
+	if (const APawn* Pawn = GetPawn(); Pawn && !Pawn->HasAuthority()) { return 0; }
 	if (!bUseFiniteAmmoSystem)
 	{
 		return 0;
@@ -198,6 +200,7 @@ void ULyraRangedWeaponInstance::OnInstigatorChanged()
 
 void ULyraRangedWeaponInstance::SetInventoryStatTagCount(ULyraInventoryItemInstance* ItemInstance, FGameplayTag Tag, int32 DesiredCount) const
 {
+	if (const APawn* Pawn = GetPawn(); Pawn && !Pawn->HasAuthority()) { return; }
 	if ((ItemInstance == nullptr) || !Tag.IsValid())
 	{
 		return;

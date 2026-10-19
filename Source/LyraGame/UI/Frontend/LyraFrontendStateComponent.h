@@ -19,6 +19,7 @@ enum class ECommonUserPrivilege : uint8;
 class UCommonActivatableWidget;
 class UCommonUserInfo;
 class ULyraExperienceDefinition;
+class ULyraButtonBase;
 
 UCLASS(Abstract)
 class ULyraFrontendStateComponent : public UGameStateComponent, public ILoadingProcessInterface
@@ -38,6 +39,8 @@ public:
 	virtual bool ShouldShowLoadingScreen(FString& OutReason) const override;
 	//~End of ILoadingProcessInterface
 
+	ULyraButtonBase* GetRoomMenuButton() const { return RoomMenuButton; }
+
 private:
 	void OnExperienceLoaded(const ULyraExperienceDefinition* Experience);
 
@@ -48,6 +51,11 @@ private:
 	void FlowStep_TryShowPressStartScreen(FControlFlowNodeRef SubFlow);
 	void FlowStep_TryJoinRequestedSession(FControlFlowNodeRef SubFlow);
 	void FlowStep_TryShowMainScreen(FControlFlowNodeRef SubFlow);
+	void InstallRoomMenuEntry(UCommonActivatableWidget* Screen);
+	void OpenRoomMenu();
+
+	UPROPERTY(Transient)
+	TObjectPtr<ULyraButtonBase> RoomMenuButton;
 
 	bool bShouldShowLoadingScreen = true;
 

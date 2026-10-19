@@ -64,6 +64,8 @@ public class LyraGame : ModuleRules
 				"GameSettings",
 				"CommonGame",
 				"CommonUser",
+				"OnlineSubsystem",
+				"OnlineSubsystemUtils",
 				"GameSubtitles",
 				"GameplayMessageRuntime",
 				"AudioMixer",

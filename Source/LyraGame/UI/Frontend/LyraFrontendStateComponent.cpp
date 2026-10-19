@@ -10,6 +10,13 @@
 #include "Kismet/GameplayStatics.h"
 #include "NativeGameplayTags.h"
 #include "PrimaryGameLayout.h"
+#include "Player/LyraPlayerController.h"
+#include "UI/Rooms/LyraRoomSubsystem.h"
+#include "UI/Rooms/LyraRoomScreen.h"
+#include "UI/Foundation/LyraButtonBase.h"
+#include "Blueprint/WidgetTree.h"
+#include "Components/PanelWidget.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Widgets/CommonActivatableWidgetContainer.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraFrontendStateComponent)
@@ -225,19 +232,52 @@ void ULyraFrontendStateComponent::FlowStep_TryShowMainScreen(FControlFlowNodeRef
 	{
 		constexpr bool bSuspendInputUntilComplete = true;
 		RootLayout->PushWidgetToLayerStackAsync<UCommonActivatableWidget>(FrontendTags::TAG_UI_LAYER_MENU, bSuspendInputUntilComplete, MainScreenClass,
-			[this, SubFlow](EAsyncWidgetLayerState State, UCommonActivatableWidget* Screen) {
+			[WeakThis = TWeakObjectPtr<ULyraFrontendStateComponent>(this), SubFlow](EAsyncWidgetLayerState State, UCommonActivatableWidget* Screen) {
+			auto* Self = WeakThis.Get();
+			if (!Self || !Self->GetWorld()) { if (Screen) { Screen->DeactivateWidget(); } return; }
 			switch (State)
 			{
 			case EAsyncWidgetLayerState::AfterPush:
-				bShouldShowLoadingScreen = false;
+				Self->bShouldShowLoadingScreen = false;
+				Self->GetWorld()->GetGameInstance()->GetSubsystem<ULyraRoomSubsystem>()->FrontendReady(Self->GetWorld());
+				Self->InstallRoomMenuEntry(Screen);
 				SubFlow->ContinueFlow();
 				return;
 			case EAsyncWidgetLayerState::Canceled:
-				bShouldShowLoadingScreen = false;
+				Self->bShouldShowLoadingScreen = false;
 				SubFlow->ContinueFlow();
 				return;
 			}
 		});
+	}
+}
+
+void ULyraFrontendStateComponent::InstallRoomMenuEntry(UCommonActivatableWidget* Screen)
+{
+	// Reuse the original menu button class, style and layout container on every frontend load.
+	auto* StartButton = Screen && Screen->WidgetTree ? Cast<ULyraButtonBase>(Screen->WidgetTree->FindWidget(TEXT("StartGameButton"))) : nullptr;
+	if (!ensure(StartButton && StartButton->GetParent())) { return; }
+	RoomMenuButton = CreateWidget<ULyraButtonBase>(Screen->GetOwningPlayer(), StartButton->GetClass(), TEXT("LocalNetworkRoomButton"));
+	RoomMenuButton->SetButtonText(NSLOCTEXT("LyraFrontend", "LocalNetworkRoom", "局域网直连"));
+	auto* Slot = StartButton->GetParent()->AddChild(RoomMenuButton);
+	if (auto* VerticalSlot = Cast<UVerticalBoxSlot>(Slot))
+	{
+		if (const auto* OriginalSlot = Cast<UVerticalBoxSlot>(StartButton->Slot))
+		{
+			VerticalSlot->SetPadding(OriginalSlot->GetPadding());
+			VerticalSlot->SetHorizontalAlignment(OriginalSlot->GetHorizontalAlignment());
+			VerticalSlot->SetVerticalAlignment(OriginalSlot->GetVerticalAlignment());
+			VerticalSlot->SetSize(OriginalSlot->GetSize());
+		}
+	}
+	RoomMenuButton->OnClicked().AddUObject(this, &ThisClass::OpenRoomMenu);
+}
+
+void ULyraFrontendStateComponent::OpenRoomMenu()
+{
+	if (auto* PC = Cast<ALyraPlayerController>(GetWorld()->GetFirstPlayerController()))
+	{
+		if (!PC->GetRoomScreen() || !PC->GetRoomScreen()->IsActivated()) { PC->ToggleRoomMenu(); }
 	}
 }
 

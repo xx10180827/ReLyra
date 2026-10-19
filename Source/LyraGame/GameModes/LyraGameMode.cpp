@@ -27,6 +27,7 @@
 #include "CommonSessionSubsystem.h"
 #include "TimerManager.h"
 #include "GameMapsSettings.h"
+#include "UI/Rooms/LyraRoomMaps.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraGameMode)
 
@@ -83,6 +84,35 @@ void ALyraGameMode::InitGame(const FString& MapName, const FString& Options, FSt
 
 	// Wait for the next frame to give time to initialize startup settings
 	GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ThisClass::HandleMatchAssignmentIfNotExpectingOne);
+}
+
+bool ALyraGameMode::IsLanRoom() const
+{
+	return UGameplayStatics::ParseOption(OptionsString, TEXT("LyraLanRoom")) == TEXT("1")
+		&& LyraRoomMaps::FindPackage(GetWorld()->GetOutermost()->GetName());
+}
+
+FString ALyraGameMode::InitNewPlayer(APlayerController* PC, const FUniqueNetIdRepl& Id, const FString& Options, const FString& Portal)
+{
+	if (IsLanRoom())
+	{
+		if (auto* LyraPC = Cast<ALyraPlayerController>(PC))
+		{
+			const auto* Map = LyraRoomMaps::FindPackage(GetWorld()->GetOutermost()->GetName());
+			LyraPC->RequestedRoomTeam = UGameplayStatics::ParseOption(Options, TEXT("RoomTeam")) == TEXT("2") ? Map->BlueTeam : Map->RedTeam;
+		}
+	}
+	return Super::InitNewPlayer(PC, Id, Options, Portal);
+}
+
+void ALyraGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& Id, FString& ErrorMessage)
+{
+	Super::PreLogin(Options, Address, Id, ErrorMessage);
+	if (IsLanRoom())
+	{
+		if (GetNumPlayers() >= 2) { ErrorMessage = TEXT("INVENTORY_ROOM_FULL"); }
+		else if (UGameplayStatics::HasOption(Options, TEXT("SpectatorOnly"))) { ErrorMessage = TEXT("INVENTORY_SPECTATORS_DISABLED"); }
+	}
 }
 
 void ALyraGameMode::HandleMatchAssignmentIfNotExpectingOne()
@@ -452,6 +482,7 @@ bool ALyraGameMode::ControllerCanRestart(AController* Controller)
 void ALyraGameMode::InitGameState()
 {
 	Super::InitGameState();
+	GetGameState<ALyraGameState>()->bIsLanRoom = IsLanRoom();
 
 	// Listen for the experience load to complete	
 	ULyraExperienceManagerComponent* ExperienceComponent = GameState->FindComponentByClass<ULyraExperienceManagerComponent>();

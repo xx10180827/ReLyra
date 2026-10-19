@@ -2,6 +2,7 @@
 #include "Player/LyraPlayerController.h"
 #include "LyraInventoryManagerComponent.h"
 #include "UI/Inventory/LyraInventoryScreen.h"
+#include "UI/Rooms/LyraRoomScreen.h"
 #include "PrimaryGameLayout.h"
 #include "CommonUIExtensions.h"
 #include "Components/InputComponent.h"
@@ -21,6 +22,11 @@ void ALyraPlayerController::SetupInputComponent()
 
 bool ALyraPlayerController::InputKey(const FInputKeyParams& Params)
 {
+	if (IsLocalController() && Params.Key == EKeys::F10)
+	{
+		if (Params.Event == IE_Pressed) { ToggleRoomMenu(); }
+		return true;
+	}
 	// Reserve I before Enhanced Input sees it: Explorer otherwise activates its
 	// legacy inventory ability in addition to this shared backpack.
 	if (IsLocalController() && Params.Key == EKeys::I)
@@ -29,6 +35,17 @@ bool ALyraPlayerController::InputKey(const FInputKeyParams& Params)
 		return true;
 	}
 	return Super::InputKey(Params);
+}
+
+void ALyraPlayerController::ToggleRoomMenu()
+{
+	if (!IsLocalController()) { return; }
+	if (RoomScreen && RoomScreen->IsActivated()) { RoomScreen->DeactivateWidget(); return; }
+	if (InventoryScreen && InventoryScreen->IsActivated()) { InventoryScreen->CloseInventory(); }
+	if (auto* Layout = UPrimaryGameLayout::GetPrimaryGameLayout(this))
+	{
+		RoomScreen = Layout->PushWidgetToLayerStack<ULyraRoomScreen>(FGameplayTag::RequestGameplayTag(TEXT("UI.Layer.Menu")), ULyraRoomScreen::StaticClass());
+	}
 }
 
 void ALyraPlayerController::ToggleInventory()
@@ -71,6 +88,8 @@ void ALyraPlayerController::Tick(float DeltaTime)
 
 void ALyraPlayerController::ReleaseInventoryUI()
 {
+	if (RoomScreen && RoomScreen->IsActivated()) { RoomScreen->DeactivateWidget(); }
+	RoomScreen = nullptr;
 	if (InventoryScreen && InventoryScreen->IsActivated()) { InventoryScreen->CloseInventory(); }
 	InventoryScreen = nullptr;
 	InventoryPawn.Reset();

@@ -16,6 +16,15 @@ class ULyraExperienceManagerComponent;
 class UObject;
 struct FFrame;
 
+/** Display state of the original non-replicated TopDown round component. */
+USTRUCT()
+struct FLyraRoomRoundClock
+{
+	GENERATED_BODY()
+	UPROPERTY() bool bPlaying = false;
+	UPROPERTY() double ServerEndTime = 0;
+};
+
 /**
  * ALyraGameState
  *
@@ -29,6 +38,10 @@ class LYRAGAME_API ALyraGameState : public AModularGameStateBase, public IAbilit
 public:
 
 	ALyraGameState(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	UPROPERTY(Replicated)
+	bool bIsLanRoom = false;
+	const FLyraRoomRoundClock& GetRoomRoundClock() const { return RoomRoundClock; }
 
 	//~AActor interface
 	virtual void PreInitializeComponents() override;
@@ -75,6 +88,10 @@ public:
 	FOnRecorderPlayerStateChanged OnRecorderPlayerStateChangedEvent;
 
 private:
+	void TickRoomRoundClock();
+	UPROPERTY(Replicated)
+	FLyraRoomRoundClock RoomRoundClock;
+
 	// Handles loading and managing the current gameplay experience
 	UPROPERTY()
 	TObjectPtr<ULyraExperienceManagerComponent> ExperienceManagerComponent;

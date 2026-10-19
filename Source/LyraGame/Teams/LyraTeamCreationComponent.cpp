@@ -7,6 +7,7 @@
 #include "Player/LyraPlayerState.h"
 #include "Engine/World.h"
 #include "GameModes/LyraGameMode.h"
+#include "Player/LyraPlayerController.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -92,7 +93,9 @@ void ULyraTeamCreationComponent::ServerChooseTeamForPlayer(ALyraPlayerState* PS)
 	}
 	else
 	{
-		const FGenericTeamId TeamID = IntegerToGenericTeamId(GetLeastPopulatedTeamID());
+		const auto* RoomPC = Cast<ALyraPlayerController>(PS->GetOwner());
+		const int32 Choice = RoomPC ? RoomPC->RequestedRoomTeam : INDEX_NONE;
+		const FGenericTeamId TeamID = IntegerToGenericTeamId(TeamsToCreate.Contains(Choice) ? Choice : GetLeastPopulatedTeamID());
 		PS->SetGenericTeamId(TeamID);
 	}
 }
