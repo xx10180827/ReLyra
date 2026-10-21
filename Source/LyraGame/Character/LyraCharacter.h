@@ -172,6 +172,7 @@ protected:
 	virtual void OnDeathFinished(AActor* OwningActor);
 
 	void DisableMovementAndCollision();
+	void ReleaseDeathMovementInput();
 	void DestroyDueToDeath();
 	void UninitAndDestroy();
 
@@ -188,6 +189,7 @@ protected:
 	virtual bool CanJumpInternal_Implementation() const;
 
 private:
+	TWeakObjectPtr<AController> DeathMovementController;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Lyra|Character", Meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ULyraPawnExtensionComponent> PawnExtComponent;

@@ -13,6 +13,25 @@
 #include "GameFramework/GameStateBase.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerInput.h"
+#include "Character/LyraHealthComponent.h"
+#include "Equipment/LyraQuickBarComponent.h"
+#include "UObject/UnrealType.h"
+
+void ALyraPlayerController::PrepareRoomInventoryPawn(APawn* NewPawn)
+{
+	if (!HasAuthority() || !NewPawn) { return; }
+	if (bRoomPawnSpawned)
+	{
+		// The original shooter blueprint grants InitialInventoryItems on possession.
+		// Clear only this new pawn instance's defaults; retain the controller's existing
+		// inventory and selected slot, even when the player deliberately emptied them.
+		if (auto* Items = FindFProperty<FArrayProperty>(NewPawn->GetClass(), TEXT("InitialInventoryItems")))
+		{
+			FScriptArrayHelper(Items, Items->ContainerPtrToValuePtr<void>(NewPawn)).EmptyValues();
+		}
+	}
+	bRoomPawnSpawned = true;
+}
 
 void ALyraPlayerController::SetupInputComponent()
 {
@@ -58,7 +77,8 @@ void ALyraPlayerController::ToggleInventory()
 	if (InventoryScreen && InventoryScreen->IsActivated()) { InventoryScreen->CloseInventory(); return; }
 	auto* Inventory = FindComponentByClass<ULyraInventoryManagerComponent>();
 	auto* Layout = UPrimaryGameLayout::GetPrimaryGameLayout(this);
-	if (!GetPawn() || !Inventory || Inventory->GetSlotCapacity() <= 0 || !Layout) { return; }
+	const auto* Health = ULyraHealthComponent::FindHealthComponent(GetPawn());
+	if (!GetPawn() || (Health && Health->IsDeadOrDying()) || !Inventory || Inventory->GetSlotCapacity() <= 0 || !Layout) { return; }
 	const FGameplayTag MenuLayer = FGameplayTag::RequestGameplayTag(TEXT("UI.Layer.Menu"));
 	// Never open beneath/above an existing pause or confirmation menu.
 	auto* Layer = Layout->GetLayerWidget(MenuLayer);
@@ -83,7 +103,12 @@ void ALyraPlayerController::Tick(float DeltaTime)
 		}
 	}
 	TickPickupInteraction();
-	if (InventoryScreen && InventoryScreen->IsActivated() && GetPawn() != InventoryPawn.Get()) { ReleaseInventoryUI(); }
+	const auto* Health = ULyraHealthComponent::FindHealthComponent(GetPawn());
+	if (InventoryScreen && InventoryScreen->IsActivated() && (GetPawn() != InventoryPawn.Get() || (Health && Health->IsDeadOrDying()))) { ReleaseInventoryUI(); }
+	if (HasAuthority())
+	{
+		if (auto* Bar = FindComponentByClass<ULyraQuickBarComponent>()) { Bar->RestorePawnEquipment(); }
+	}
 }
 
 void ALyraPlayerController::ReleaseInventoryUI()
@@ -107,6 +132,7 @@ void ALyraPlayerController::PreClientTravel(const FString& PendingURL, ETravelTy
 void ALyraPlayerController::GetSeamlessTravelActorList(bool bToEntry, TArray<AActor*>& ActorList)
 {
 	ReleaseInventoryUI();
+	bRoomPawnSpawned = false;
 	if (HasAuthority())
 	{
 		if (auto* Inventory = FindComponentByClass<ULyraInventoryManagerComponent>())

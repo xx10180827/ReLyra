@@ -60,6 +60,7 @@ private:
  bool bReturnToMenu = false;
  bool bRoomFlow = false;
  TWeakObjectPtr<UWorld> ReadyFrontendWorld;
+ TWeakObjectPtr<UWorld> OperationWorld;
  FDelegateHandle CreateHandle, JoinHandle, PreTravelHandle, NetworkHandle, TravelHandle;
  UPROPERTY() TObjectPtr<UCommonSession_SearchSessionRequest> SearchRequest;
  UPROPERTY() TArray<TObjectPtr<UCommonSession_SearchResult>> Results;

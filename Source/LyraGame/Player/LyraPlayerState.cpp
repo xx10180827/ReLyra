@@ -6,6 +6,7 @@
 #include "AbilitySystem/Attributes/LyraHealthSet.h"
 #include "AbilitySystem/LyraAbilitySet.h"
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
+#include "AbilitySystem/Abilities/LyraGameplayAbility.h"
 #include "Character/LyraPawnData.h"
 #include "Character/LyraPawnExtensionComponent.h"
 #include "Components/GameFrameworkComponentManager.h"
@@ -205,6 +206,21 @@ void ALyraPlayerState::SetPawnData(const ULyraPawnData* InPawnData)
 		if (AbilitySet)
 		{
 			AbilitySet->GiveToAbilitySystem(AbilitySystemComponent, nullptr);
+		}
+	}
+
+	// The inventory room has no scoring mode that grants respawn. Reuse the native
+	// shooter lifecycle for this room only; TopDown keeps its elimination rules.
+	const auto* Mode = GetWorld()->GetAuthGameMode<ALyraGameMode>();
+	if (Mode && Mode->IsLanRoom() && GetLyraPlayerController()
+		&& GetWorld()->GetOutermost()->GetName() == TEXT("/Game/InventorySystem/Maps/L_InventoryMultiplayer"))
+	{
+		if (auto* Respawn = LoadClass<ULyraGameplayAbility>(nullptr, TEXT("/ShooterCore/Game/Respawn/GA_AutoRespawn.GA_AutoRespawn_C")))
+		{
+			if (!AbilitySystemComponent->FindAbilitySpecFromClass(Respawn))
+			{
+				AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(Respawn, 1));
+			}
 		}
 	}
 

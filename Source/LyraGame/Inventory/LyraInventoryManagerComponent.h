@@ -287,6 +287,9 @@ public:
 	UFUNCTION(BlueprintPure, Category=Inventory)
 	FLyraInventoryOperationResult GetLastOperationResult() const { return LastOperationResult; }
 	int64 GetNextLocalOperationId() const { return NextLocalOperationId < MAX_int64 ? NextLocalOperationId + 1 : 0; }
+	// Keep player-owned items while a legacy pawn blueprint runs its cleanup event.
+	void RunPreservingPawnInventory(TFunctionRef<void()> Cleanup);
+	bool IsPreservingPawnInventory() const { return bPreservingPawnInventory; }
 
 	// The result can arrive before the replicated inventory; UI still renders inventory data.
 	UPROPERTY(BlueprintAssignable, Category=Inventory)
@@ -307,6 +310,7 @@ private:
 	FLyraInventoryOperationResult LastOperationResult;
 
 	bool bMutationInProgress = false;
+	bool bPreservingPawnInventory = false;
 	bool CanMergeDefinition(const FLyraInventoryEntry& Entry, TSubclassOf<ULyraInventoryItemDefinition> ItemDef) const;
 	void RegisterNewItem(ULyraInventoryItemInstance* Item);
 	bool CanRestoreSnapshot(const FLyraInventoryItemSnapshot& Snapshot) const;

@@ -16,6 +16,8 @@
 #include "Player/LyraPlayerState.h"
 #include "System/LyraSignificanceManager.h"
 #include "TimerManager.h"
+#include "GameModes/LyraGameMode.h"
+#include "Inventory/LyraInventoryManagerComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraCharacter)
 
@@ -26,6 +28,18 @@ class UInputComponent;
 
 static FName NAME_LyraCharacterCollisionProfile_Capsule(TEXT("LyraPawnCapsule"));
 static FName NAME_LyraCharacterCollisionProfile_Mesh(TEXT("LyraPawnMesh"));
+
+static void RunRoomPawnCleanup(ALyraCharacter* Character, TFunctionRef<void()> Cleanup)
+{
+	const auto* Mode = Character->GetWorld()->GetAuthGameMode<ALyraGameMode>();
+	auto* Player = Cast<ALyraPlayerController>(Character->GetController());
+	auto* Inventory = Player ? Player->FindComponentByClass<ULyraInventoryManagerComponent>() : nullptr;
+	if (Mode && Mode->IsLanRoom() && Inventory)
+	{
+		Inventory->RunPreservingPawnInventory(Cleanup);
+	}
+	else { Cleanup(); }
+}
 
 ALyraCharacter::ALyraCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<ULyraCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -103,6 +117,7 @@ void ALyraCharacter::BeginPlay()
 
 void ALyraCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	ReleaseDeathMovementInput();
 	Super::EndPlay(EndPlayReason);
 
 	UWorld* World = GetWorld();
@@ -121,7 +136,7 @@ void ALyraCharacter::Reset()
 {
 	DisableMovementAndCollision();
 
-	K2_OnReset();
+	RunRoomPawnCleanup(this, [this] { K2_OnReset(); });
 
 	UninitAndDestroy();
 }
@@ -228,6 +243,7 @@ void ALyraCharacter::PossessedBy(AController* NewController)
 
 void ALyraCharacter::UnPossessed()
 {
+	ReleaseDeathMovementInput();
 	AController* const OldController = Controller;
 
 	// Stop listening for changes from the old controller
@@ -349,9 +365,10 @@ void ALyraCharacter::OnDeathFinished(AActor*)
 
 void ALyraCharacter::DisableMovementAndCollision()
 {
-	if (Controller)
+	if (Controller && !DeathMovementController.IsValid())
 	{
 		Controller->SetIgnoreMoveInput(true);
+		DeathMovementController = Controller;
 	}
 
 	UCapsuleComponent* CapsuleComp = GetCapsuleComponent();
@@ -364,9 +381,19 @@ void ALyraCharacter::DisableMovementAndCollision()
 	LyraMoveComp->DisableMovement();
 }
 
+void ALyraCharacter::ReleaseDeathMovementInput()
+{
+	if (auto* BlockedController = DeathMovementController.Get())
+	{
+		// Balance only this pawn's death lock; preserve menu/cinematic input locks.
+		BlockedController->SetIgnoreMoveInput(false);
+	}
+	DeathMovementController.Reset();
+}
+
 void ALyraCharacter::DestroyDueToDeath()
 {
-	K2_OnDeathFinished();
+	RunRoomPawnCleanup(this, [this] { K2_OnDeathFinished(); });
 
 	UninitAndDestroy();
 }
@@ -374,6 +401,7 @@ void ALyraCharacter::DestroyDueToDeath()
 
 void ALyraCharacter::UninitAndDestroy()
 {
+	ReleaseDeathMovementInput();
 	if (GetLocalRole() == ROLE_Authority)
 	{
 		DetachFromControllerPendingDestroy();

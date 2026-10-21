@@ -3,6 +3,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "Character/LyraHealthComponent.h"
+#include "Character/LyraCharacter.h"
 #include "Inventory/LyraInventoryItemInstance.h"
 #include "Inventory/InventoryFragment_EquippableItem.h"
 #include "Inventory/LyraInventorySupplyDefinitions.h"
@@ -13,6 +14,7 @@
 #include "LyraInventoryTestItemDefinition.h"
 #include "LyraInventorySnapshotTestTypes.h"
 #include "Templates/UnrealTemplate.h"
+#include "Player/LyraPlayerController.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 namespace LyraInventoryEquipmentTest
@@ -126,6 +128,68 @@ bool FLyraInventoryEquipmentValidationTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Unready health cannot equip"), F.Inventory->ExecuteInventoryOperation(F.Request(Op::Equip, 0, 1)).Status, Status::NotAllowed);
 	TestTrue(TEXT("Rejected requests preserve shortcut"), F.Bar->GetSlots()[0] == F.Inventory->GetSlotSnapshot()[0].Instance);
 	TestEqual(TEXT("Rejected requests preserve inventory"), F.Inventory->GetAllItems().Num(), 2);
+	return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FLyraInventoryRespawnEquipmentTest, "Lyra.Inventory.Equipment.PawnLifecycle",
+	EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+bool FLyraInventoryRespawnEquipmentTest::RunTest(const FString& Parameters)
+{
+	using namespace LyraInventoryEquipmentTest;
+	auto* Def = GetMutableDefault<ULyraInventoryTestItemDefinition>();
+	TGuardValue<decltype(Def->Fragments)> Fragments(Def->Fragments, {});
+	TGuardValue<int32> StackSize(Def->MaxStackSize, 1);
+	auto* Fragment = NewObject<UInventoryFragment_EquippableItem>();
+	Fragment->EquipmentDefinition = ULyraEquipmentDefinition::StaticClass(); Def->Fragments.Add(Fragment);
+	FFixture F;
+	auto* Item = F.Inventory->AddItemDefinition(Def->GetClass(), 1);
+	const auto Reserve = FGameplayTag::RequestGameplayTag(TEXT("Lyra.ShooterGame.Weapon.SpareAmmo"));
+	Item->AddStatTagStack(Reserve, 19);
+	const FGuid Id = F.Inventory->GetSlotSnapshot()[0].EntryId;
+	F.Inventory->ExecuteInventoryOperation(F.Request(ELyraInventoryOperation::Equip, 0, 1));
+	F.Inventory->RunPreservingPawnInventory([&]
+	{
+		F.Bar->RemoveItemFromSlot(1);
+		F.Inventory->RemoveItemInstance(Item);
+	});
+	TestTrue(TEXT("Legacy pawn cleanup preserves inventory and selection"), F.Inventory->CanReferenceItem(Item) && F.Bar->GetActiveSlotItem() == Item);
+	auto* OldEquipment = F.Equipment->GetFirstInstanceOfType<ULyraEquipmentInstance>();
+	F.Bar->ReleasePawnEquipment(); F.Controller->UnPossess(); F.Bar->RestorePawnEquipment();
+	F.Bar->SetActiveSlotIndex(0);
+	TestNull(TEXT("Old pawn equipment releases inventory instigator"), OldEquipment->GetInstigator());
+	TestEqual(TEXT("Old pawn no equipment"), F.Equipment->GetEquipmentInstancesOfType(ULyraEquipmentInstance::StaticClass()).Num(), 0);
+	TestEqual(TEXT("Selection survives no-pawn interval"), F.Bar->GetActiveSlotIndex(), 1);
+	auto* NewPawn = F.World->SpawnActor<APawn>();
+	auto* NewEquipment = NewObject<ULyraEquipmentManagerComponent>(NewPawn); NewEquipment->RegisterComponent();
+	F.Controller->Possess(NewPawn); F.Bar->RestorePawnEquipment(); F.Bar->RestorePawnEquipment();
+	auto* Restored = NewEquipment->GetFirstInstanceOfType<ULyraEquipmentInstance>();
+	TestTrue(TEXT("New pawn equipment references original inventory item"), Restored && Restored != OldEquipment && Restored->GetPawn() == NewPawn && Restored->GetInstigator() == Item);
+	TestEqual(TEXT("Repeated ready ticks cannot duplicate equipment"), NewEquipment->GetEquipmentInstancesOfType(ULyraEquipmentInstance::StaticClass()).Num(), 1);
+	TestEqual(TEXT("Stable inventory entry survives pawn change"), F.Inventory->GetSlotSnapshot()[0].EntryId, Id);
+	TestEqual(TEXT("Reserve preserved"), Item->GetStatTagStackCount(Reserve), 19);
+	F.Inventory->RemoveItemInstance(Item); F.Bar->RestorePawnEquipment();
+	TestEqual(TEXT("Removed weapon cannot be restored"), NewEquipment->GetEquipmentInstancesOfType(ULyraEquipmentInstance::StaticClass()).Num(), 0);
+	// A delayed backpack command must not act during the no-pawn interval or replay later.
+	auto* Player = F.World->SpawnActor<ALyraPlayerController>();
+	auto* PlayerInventory = NewObject<ULyraInventoryManagerComponent>(Player);
+	PlayerInventory->RegisterComponent(); PlayerInventory->ConfigureSlotCapacity(20);
+	PlayerInventory->AddItemDefinition(Def->GetClass(), 1);
+	FLyraInventoryOperationRequest Move;
+	Move.RequestId = 1; Move.Operation = ELyraInventoryOperation::Move;
+	Move.SourceSlot = 0; Move.TargetSlot = 1;
+	Move.SourceEntryId = PlayerInventory->GetSlotSnapshot()[0].EntryId; Move.ExpectedSourceCount = 1;
+	TestEqual(TEXT("No-pawn command rejected"), PlayerInventory->ExecuteInventoryOperation(Move).Status, ELyraInventoryOperationStatus::NotAllowed);
+	Player->Possess(F.World->SpawnActor<APawn>());
+	TestEqual(TEXT("Rejected death command cannot replay after respawn"), PlayerInventory->ExecuteInventoryOperation(Move).Status, ELyraInventoryOperationStatus::StaleRequest);
+	Move.RequestId = 2;
+	TestEqual(TEXT("Fresh command works on the new pawn"), PlayerInventory->ExecuteInventoryOperation(Move).Status, ELyraInventoryOperationStatus::Success);
+	auto* Character = F.World->SpawnActor<ALyraCharacter>();
+	F.Controller->Possess(Character);
+	F.Controller->SetIgnoreMoveInput(true); // A separate menu/cinematic owns this lock.
+	ULyraHealthComponent::FindHealthComponent(Character)->StartDeath();
+	Character->Reset(); // Native auto-respawn also resets an already dying pawn.
+	TestTrue(TEXT("Pawn cleanup preserves other input locks"), F.Controller->IsMoveInputIgnored());
+	F.Controller->SetIgnoreMoveInput(false);
+	TestFalse(TEXT("Death and reset do not leave an extra movement lock"), F.Controller->IsMoveInputIgnored());
 	return true;
 }
 #endif

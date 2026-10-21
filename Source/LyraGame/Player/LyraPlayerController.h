@@ -148,6 +148,7 @@ protected:
 	bool bHideViewTargetPawnNextFrame = false;
 public:
 	void ToggleInventory();
+	void PrepareRoomInventoryPawn(APawn* NewPawn);
 	void ToggleRoomMenu();
 	// Server-only entry selection. Never changed by an in-room RPC.
 	int32 RequestedRoomTeam = INDEX_NONE;
@@ -180,6 +181,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<ULyraRoomScreen> RoomScreen;
 	FText RoomTeamFeedback;
 	TWeakObjectPtr<APawn> InventoryPawn;
+	bool bRoomPawnSpawned = false;
 
 
 	void ReleaseInventoryUI();

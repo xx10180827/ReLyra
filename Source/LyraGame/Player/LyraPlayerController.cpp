@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "LyraGameplayTags.h"
 #include "GameFramework/Pawn.h"
+#include "Equipment/LyraQuickBarComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/GameInstance.h"
 #include "AbilitySystemGlobals.h"
@@ -512,6 +513,8 @@ FOnLyraTeamIndexChangedDelegate* ALyraPlayerController::GetOnTeamIndexChangedDel
 
 void ALyraPlayerController::OnUnPossess()
 {
+	ReleaseInventoryUI();
+	if (auto* Bar = FindComponentByClass<ULyraQuickBarComponent>()) { Bar->ReleasePawnEquipment(); }
 	// Make sure the pawn that is being unpossessed doesn't remain our ASC's avatar actor
 	if (APawn* PawnBeingUnpossessed = GetPawn())
 	{

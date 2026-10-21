@@ -66,6 +66,7 @@ bool ULyraRoomSubsystem::IsReady() const
 void ULyraRoomSubsystem::SetState(EState NewState, const FText& Message)
 {
  State = NewState; Status = Message; OperationStarted = FPlatformTime::Seconds();
+ OperationWorld = GetWorld();
  UE_LOG(LogTemp, Display, TEXT("ROOM_FLOW state=%d message=%s"), int32(State), *Status.ToString());
 }
 bool ULyraRoomSubsystem::NormalizeAddress(const FString& Input, FString& Output)
@@ -170,8 +171,15 @@ void ULyraRoomSubsystem::Leave()
 }
 void ULyraRoomSubsystem::NetworkFailure(UWorld* World, UNetDriver* Driver, ENetworkFailure::Type Type, const FString& Error)
 {
- if (World != GetWorld() || !bRoomFlow || State == EState::Leaving || State == EState::Failed) { return; }
- Failed(Error.Contains(TEXT("FULL")) ? LOCTEXT("RoomFull", "房间已满，最多两名玩家。请返回后重试。") : LOCTEXT("ConnectionLost", "无法连接或连接已断开，房主可能已退出。可重新搜索或输入地址重试。"));
+ // PreLogin rejection has no gameplay world yet. Match the pending driver to this
+ // game instance instead of dropping its full-room/error response (also safe in PIE).
+ const FWorldContext* Pending = GEngine && Driver ? GEngine->GetWorldContextFromPendingNetGameNetDriver(Driver) : nullptr;
+ const bool bOwnPending = Pending && Pending->OwningGameInstance == GetGameInstance();
+ if ((World != GetWorld() && !bOwnPending) || !bRoomFlow || State == EState::Leaving || State == EState::Failed) { return; }
+ // A failed remote connection on the listen server must not evict the host.
+ if (GetWorld() && GetWorld()->GetNetMode() == NM_ListenServer && State == EState::Connected
+  && (Type == ENetworkFailure::ConnectionLost || Type == ENetworkFailure::ConnectionTimeout || Type == ENetworkFailure::FailureReceived)) { return; }
+ Failed(Error.Contains(TEXT("full"), ESearchCase::IgnoreCase) ? LOCTEXT("RoomFull", "房间已满，最多两名玩家。请返回后重试。") : LOCTEXT("ConnectionLost", "无法连接或连接已断开，房主可能已退出。可重新搜索或输入地址重试。"));
 }
 void ULyraRoomSubsystem::TravelFailure(UWorld* World, ETravelFailure::Type Type, const FString& Error)
 {
@@ -206,6 +214,11 @@ FText ULyraRoomSubsystem::GetResultMapLabel(int32 Index) const
 void ULyraRoomSubsystem::Tick(float DeltaTime)
 {
  if (!GetWorld() || !GetWorld()->IsGameWorld()) { return; }
+ // Synchronous map loading can exceed the connection timeout on a cold cache.
+ // A new target world is real progress; give its experience activation a fresh deadline once.
+ if ((State == EState::Hosting || State == EState::Joining) && OperationWorld.Get() != GetWorld()
+  && !GetWorld()->GetMapName().Contains(TEXT("L_LyraFrontEnd")))
+ { OperationWorld = GetWorld(); OperationStarted = FPlatformTime::Seconds(); }
  if (bReturnToMenu)
  {
   bReturnToMenu = false;

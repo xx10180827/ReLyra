@@ -12,6 +12,8 @@
 #include "Templates/UnrealTemplate.h"
 #include "NativeGameplayTags.h"
 #include "Net/UnrealNetwork.h"
+#include "Character/LyraHealthComponent.h"
+#include "Character/LyraPawnExtensionComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LyraQuickBarComponent)
 
@@ -126,6 +128,30 @@ void ULyraQuickBarComponent::UnequipItemInSlot()
 	}
 }
 
+void ULyraQuickBarComponent::ReleasePawnEquipment()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots) { return; }
+	TGuardValue<bool> Guard(bChangingSlots, true);
+	UnequipItemInSlot();
+}
+
+void ULyraQuickBarComponent::RestorePawnEquipment()
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots) { return; }
+	auto* Controller = Cast<AController>(GetOwner());
+	auto* Pawn = Controller ? Controller->GetPawn() : nullptr;
+	const auto* Health = ULyraHealthComponent::FindHealthComponent(Pawn);
+	const auto* Extension = ULyraPawnExtensionComponent::FindPawnExtensionComponent(Pawn);
+	if (!Pawn || (Health && (Health->IsDeadOrDying() || Health->GetHealth() <= 0)) || (Extension && !Extension->GetLyraAbilitySystemComponent()) || !FindEquipmentManager()) { return; }
+	TGuardValue<bool> Guard(bChangingSlots, true);
+	if (EquippedItem && EquippedItem->GetPawn() != Pawn) { UnequipItemInSlot(); }
+	const auto* Inventory = GetOwner()->FindComponentByClass<ULyraInventoryManagerComponent>();
+	if (!EquippedItem && GetActiveSlotItem() && Inventory && Inventory->CanReferenceItem(GetActiveSlotItem()))
+	{
+		EquipItemInSlot();
+	}
+}
+
 ULyraEquipmentManagerComponent* ULyraQuickBarComponent::FindEquipmentManager() const
 {
 	if (AController* OwnerController = Cast<AController>(GetOwner()))
@@ -141,6 +167,10 @@ ULyraEquipmentManagerComponent* ULyraQuickBarComponent::FindEquipmentManager() c
 void ULyraQuickBarComponent::SetActiveSlotIndex_Implementation(int32 NewIndex)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots) { return; }
+	const auto* Controller = Cast<AController>(GetOwner());
+	if (Controller && !Controller->GetPawn()) { return; }
+	const auto* Health = ULyraHealthComponent::FindHealthComponent(Controller ? Controller->GetPawn() : nullptr);
+	if (Health && (Health->IsDeadOrDying() || Health->GetHealth() <= 0)) { return; }
 	if (const auto* Inventory = GetOwner()->FindComponentByClass<ULyraInventoryManagerComponent>())
 	{
 		if (Slots.IsValidIndex(NewIndex) && Slots[NewIndex] && !Inventory->CanReferenceItem(Slots[NewIndex])) { return; }
@@ -199,6 +229,8 @@ void ULyraQuickBarComponent::AddItemToSlot(int32 SlotIndex, ULyraInventoryItemIn
 ULyraInventoryItemInstance* ULyraQuickBarComponent::RemoveItemFromSlot(int32 SlotIndex)
 {
 	if (!GetOwner() || !GetOwner()->HasAuthority() || bChangingSlots || !Slots.IsValidIndex(SlotIndex)) { return nullptr; }
+	if (const auto* Inventory = GetOwner()->FindComponentByClass<ULyraInventoryManagerComponent>();
+		Inventory && Inventory->IsPreservingPawnInventory()) { return nullptr; }
 	TGuardValue<bool> Guard(bChangingSlots, true);
 	ULyraInventoryItemInstance* Result = nullptr;
 

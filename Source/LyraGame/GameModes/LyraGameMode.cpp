@@ -96,6 +96,14 @@ FString ALyraGameMode::InitNewPlayer(APlayerController* PC, const FUniqueNetIdRe
 {
 	if (IsLanRoom())
 	{
+		// Recheck at admission: multiple clients can pass PreLogin before either joins.
+		int32 OtherHumans = 0;
+		for (auto It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			if (IsValid(It->Get()) && It->Get() != PC) { ++OtherHumans; }
+		}
+		if (OtherHumans >= 2) { return TEXT("INVENTORY_ROOM_FULL"); }
+		if (UGameplayStatics::HasOption(Options, TEXT("SpectatorOnly"))) { return TEXT("INVENTORY_SPECTATORS_DISABLED"); }
 		if (auto* LyraPC = Cast<ALyraPlayerController>(PC))
 		{
 			const auto* Map = LyraRoomMaps::FindPackage(GetWorld()->GetOutermost()->GetName());
@@ -396,6 +404,10 @@ APawn* ALyraGameMode::SpawnDefaultPawnAtTransform_Implementation(AController* Ne
 			}
 
 			SpawnedPawn->FinishSpawning(SpawnTransform);
+			if (IsLanRoom())
+			{
+				if (auto* Player = Cast<ALyraPlayerController>(NewPlayer)) { Player->PrepareRoomInventoryPawn(SpawnedPawn); }
+			}
 
 			return SpawnedPawn;
 		}

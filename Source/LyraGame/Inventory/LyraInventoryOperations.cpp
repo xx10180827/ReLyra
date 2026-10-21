@@ -4,6 +4,8 @@
 #include "LyraInventoryItemInstance.h"
 #include "Equipment/LyraQuickBarComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Player/LyraPlayerController.h"
+#include "Character/LyraHealthComponent.h"
 #include "Templates/UnrealTemplate.h"
 
 bool ULyraInventoryManagerComponent::RequestInventoryOperation(ELyraInventoryOperation Operation,
@@ -68,6 +70,16 @@ FLyraInventoryOperationResult ULyraInventoryManagerComponent::ExecuteInventoryOp
 	// Retain a watermark instead of an unbounded request cache. Invalid requests are consumed too.
 	LastProcessedOperationId = Request.RequestId;
 	Result.LastProcessedRequestId = LastProcessedOperationId;
+	// The controller survives death, so a queued UI RPC can outlive its pawn.
+	// Consume the sequence even when rejected; it must not replay after respawn.
+	if (const auto* Player = Cast<ALyraPlayerController>(GetOwner()))
+	{
+		const auto* Health = ULyraHealthComponent::FindHealthComponent(Player->GetPawn());
+		if (!Player->GetPawn() || (Health && (Health->IsDeadOrDying() || Health->GetHealth() <= 0)))
+		{
+			Result.Status = EStatus::NotAllowed; return Result;
+		}
+	}
 	if (Request.Operation == EOperation::Drop) { return ExecuteDrop(Request, Result); }
 	if (Request.Operation == EOperation::Use) { return ExecuteUse(Request, Result); }
 	if (Request.Operation == EOperation::Equip || Request.Operation == EOperation::Unequip || Request.Operation == EOperation::Activate)

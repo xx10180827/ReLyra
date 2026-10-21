@@ -488,9 +488,15 @@ void ULyraInventoryManagerComponent::RemoveEntryAndReferences(ULyraInventoryItem
 
 void ULyraInventoryManagerComponent::RemoveItemInstance(ULyraInventoryItemInstance* ItemInstance)
 {
-	if (!GetOwner() || !GetOwner()->HasAuthority() || bMutationInProgress) { return; }
+	if (!GetOwner() || !GetOwner()->HasAuthority() || bMutationInProgress || bPreservingPawnInventory) { return; }
 	TGuardValue<bool> MutationGuard(bMutationInProgress, true);
 	RemoveEntryAndReferences(ItemInstance);
+}
+
+void ULyraInventoryManagerComponent::RunPreservingPawnInventory(TFunctionRef<void()> Cleanup)
+{
+	TGuardValue<bool> Guard(bPreservingPawnInventory, true);
+	Cleanup();
 }
 
 TArray<ULyraInventoryItemInstance*> ULyraInventoryManagerComponent::GetAllItems() const

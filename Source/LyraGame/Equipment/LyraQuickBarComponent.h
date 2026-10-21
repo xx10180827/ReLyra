@@ -54,6 +54,10 @@ public:
 	// Inventory removal clears every occurrence, including the active equipment reference.
 	void RemoveItemReferences(ULyraInventoryItemInstance* Item);
 
+	// Controller inventory survives a pawn; equipment and its granted abilities do not.
+	void ReleasePawnEquipment();
+	void RestorePawnEquipment();
+
 	virtual void BeginPlay() override;
 
 private:
