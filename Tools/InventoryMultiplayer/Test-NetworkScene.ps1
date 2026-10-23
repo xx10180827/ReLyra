@@ -3,6 +3,7 @@ param(
 	[ValidateRange(0, 500)] [int]$PacketLag = 0,
 	[ValidateRange(0, 5)] [int]$PacketLoss = 0,
     [string]$EngineRoot,
+    [string]$GameExecutable,
     [switch]$Render,
     [switch]$InventoryRules,
     [switch]$InventorySnapshots,
@@ -22,7 +23,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($WeaponSync) { $InventoryReload = $true }
-if (($PacketLag -gt 0 -or $PacketLoss -gt 0) -and -not $WeaponSync) { throw 'Network simulation requires WeaponSync.' }
 if ($UseFixture -and ($InventoryUse -or $InventoryReload -or $InventoryEquipment -or $InventoryDrop -or $InventoryPickup -or $InventoryUI -or $InventoryOperations -or $InventorySnapshots -or $InventoryRules)) { throw 'Run the manual use fixture check separately.' }
 if ($InventoryUse) {
     if ($InventoryReload) { throw 'Run use and reload fixtures separately.' }
@@ -45,10 +45,10 @@ if ($InventoryUI) { $InventoryOperations = $true; $Render = $true }
 if ($InventoryOperations) { $InventoryRules = $true; $InventorySnapshots = $true }
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $projectFile = Join-Path $projectRoot 'Lyra.uproject'
-if (-not $EngineRoot) {
+if (-not $EngineRoot -and -not $GameExecutable) {
     $EngineRoot = (Get-ItemProperty 'HKLM:\SOFTWARE\EpicGames\Unreal Engine\5.4').InstalledDirectory
 }
-$editorExecutable = Join-Path $EngineRoot 'Engine/Binaries/Win64/UnrealEditor-Cmd.exe'
+$editorExecutable = if ($GameExecutable) { (Resolve-Path -LiteralPath $GameExecutable).Path } else { Join-Path $EngineRoot 'Engine/Binaries/Win64/UnrealEditor-Cmd.exe' }
 if (-not (Test-Path -LiteralPath $editorExecutable -PathType Leaf)) {
     throw 'UnrealEditor-Cmd.exe was not found. Supply the UE 5.4 directory with -EngineRoot.'
 }
@@ -68,6 +68,9 @@ $commonArguments = @(
     '-gauntlet=LyraInventoryNetworkTest', '-gauntlet.tickrate=0.0166667', '-InventoryTestMove',
     '-ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null'
 )
+if ($GameExecutable) { $commonArguments = @($commonArguments | Select-Object -Skip 1) }
+# Native NetDriver settings apply to connection setup and all inventory scenarios.
+if ($PacketLag -gt 0 -or $PacketLoss -gt 0) { $commonArguments += @("-PktLag=$PacketLag", "-PktLoss=$PacketLoss") }
 if ($Render) {
     $commonArguments += @('-RenderOffscreen', '-windowed', '-ResX=960', '-ResY=640',
         ('-InventoryTestScreenshotDir="' + $runDirectory + '"'), '-ExecCmds="t.MaxFPS 45"')
@@ -163,6 +166,11 @@ try {
         (Read-TestLog $hostLog).Contains('INVENTORY_USE PASS role=Host ' + $useSummary) -and
         (Read-TestLog $clientLog).Contains('INVENTORY_USE PASS role=Client ' + $useSummary))
     $report = [ordered]@{
+        executable = $editorExecutable
+        packagedGame = [bool]$GameExecutable
+        networkSimulationVerified = (($PacketLag -eq 0 -and $PacketLoss -eq 0) -or (
+            (Read-TestLog $hostLog).Contains("PktLag set to $PacketLag") -and (Read-TestLog $clientLog).Contains("PktLag set to $PacketLag") -and
+            (Read-TestLog $hostLog).Contains("PktLoss set to $PacketLoss") -and (Read-TestLog $clientLog).Contains("PktLoss set to $PacketLoss")))
         weaponSyncChecked = [bool]$WeaponSync
         weaponSyncPassed = ((-not $WeaponSync) -or ((Read-TestLog $hostLog).Contains('WEAPON_SYNC PASS role=Host ') -and (Read-TestLog $clientLog).Contains('WEAPON_SYNC PASS role=Client ')))
         packetLagMs = $PacketLag
@@ -203,6 +211,7 @@ try {
         clientLog = $clientLog
     }
     $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runDirectory 'Result.json') -Encoding utf8
+    if (-not $report.networkSimulationVerified) { throw "Network simulation was not confirmed on both peers. See $runDirectory" }
     if (-not $report.weaponSyncPassed) { throw "Weapon sync checks failed. See $runDirectory" }
     if (-not $hostPassed -or -not $clientPassed -or -not $inventoryDataMatched -or -not $inventoryRulesPassed -or -not $inventorySnapshotsPassed -or -not $inventoryOperationsPassed -or -not $inventoryUIPassed -or -not $inventoryPickupPassed -or -not $inventoryDropPassed -or -not $inventoryEquipmentPassed -or -not $inventoryReloadPassed -or -not $inventoryUsePassed -or $hostProcess.ExitCode -ne 0 -or $clientProcess.ExitCode -ne 0 -or $hostErrorCount -gt 0 -or $clientErrorCount -gt 0) {
         throw "Network smoke test failed. See $runDirectory"

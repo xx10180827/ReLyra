@@ -15,7 +15,7 @@
 #include "Engine/Texture2D.h"
 #include "GameFramework/PlayerController.h"
 #include "Framework/Application/SlateApplication.h"
-#include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Input/DragAndDrop.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Layout/SBorder.h"
@@ -50,21 +50,28 @@ namespace InventoryStyle
 	}
 }
 
-class FInventorySlotDrag : public FDecoratedDragDropOp
+class FInventorySlotDrag : public FDragDropOperation
 {
 public:
-	DRAG_DROP_OPERATOR_TYPE(FInventorySlotDrag, FDecoratedDragDropOp)
+	DRAG_DROP_OPERATOR_TYPE(FInventorySlotDrag, FDragDropOperation)
 	TWeakObjectPtr<ULyraInventoryScreen> Screen;
 	int32 Source = INDEX_NONE;
 	FGuid Entry;
 	int32 Count = 0;
+	FText HoverText;
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
+	{
+		return SNew(SBorder).BorderImage(InventoryStyle::White())
+			.BorderBackgroundColor(InventoryStyle::Panel).Padding(6)
+			[InventoryStyle::Text(HoverText, 12)];
+	}
 	static TSharedRef<FInventorySlotDrag> Make(ULyraInventoryScreen* Owner, int32 Index)
 	{
 		auto Op = MakeShared<FInventorySlotDrag>();
 		Op->Screen = Owner; Op->Source = Index;
 		Op->Entry = Owner->GetDisplayedSlots()[Index].EntryId;
 		Op->Count = Owner->GetDisplayedSlots()[Index].StackCount;
-		Op->DefaultHoverText = Owner->SlotName(Index);
+		Op->HoverText = Owner->SlotName(Index);
 		Op->Construct();
 		return Op;
 	}
@@ -383,7 +390,13 @@ void ULyraInventoryScreen::RefreshInventory()
 		case ELyraInventoryOperation::Split: Applied = A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity && B.Instance && B.StackCount == Quantity; break;
 		case ELyraInventoryOperation::Merge: Applied = A.StackCount == PendingSource.StackCount - Quantity && B.EntryId == PendingTarget.EntryId && B.StackCount == PendingTarget.StackCount + Quantity; break;
 		case ELyraInventoryOperation::Use:
-		case ELyraInventoryOperation::Drop: Applied = Quantity == PendingSource.StackCount ? !A.EntryId.IsValid() : A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity; break;
+		case ELyraInventoryOperation::Drop:
+			// Replication may coalesce removal and a later pickup into an occupied slot.
+			// Completion follows the consumed entry, not whether its old slot stays empty.
+			Applied = Quantity == PendingSource.StackCount
+				? !DisplayedSlots.ContainsByPredicate([this](const auto& Slot) { return Slot.EntryId == PendingSource.EntryId; })
+				: A.EntryId == PendingSource.EntryId && A.StackCount == PendingSource.StackCount - Quantity;
+			break;
 		}
 		if (Applied)
 		{

@@ -2,6 +2,8 @@
 
 #include "LyraGameplayAbility_RangedWeapon.h"
 #include "LyraGameplayAbility_Reload.h"
+#include "System/LyraAssetManager.h"
+#include "System/LyraGameData.h"
 #include "AbilitySystem/LyraAbilitySystemComponent.h"
 #include "Weapons/LyraRangedWeaponInstance.h"
 #include "Physics/LyraCollisionChannels.h"
@@ -447,6 +449,31 @@ void ULyraGameplayAbility_RangedWeapon::TraceBulletsInCartridge(const FRangedWea
 	}
 }
 
+void ULyraGameplayAbility_RangedWeapon::OnGiveAbility(const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilitySpec& Spec)
+{
+	const FGameplayTag FireTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Movement.WeaponFire"));
+	bGrantWeaponFireEffect = ActivationOwnedTags.HasTagExact(FireTag);
+	// Loose-tag replication overwrites the predicting owner's counts. A predicted
+	// effect reconciles this activation with the server without sharing that map.
+	ActivationOwnedTags.RemoveTag(FireTag);
+	Super::OnGiveAbility(ActorInfo, Spec);
+}
+
+void ULyraGameplayAbility_RangedWeapon::PreActivate(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, FOnGameplayAbilityEnded::FDelegate* OnGameplayAbilityEndedDelegate, const FGameplayEventData* TriggerEventData)
+{
+	Super::PreActivate(Handle, ActorInfo, ActivationInfo, OnGameplayAbilityEndedDelegate, TriggerEventData);
+	if (bGrantWeaponFireEffect && IsActive())
+	{
+		const TSubclassOf<UGameplayEffect> EffectClass = ULyraAssetManager::GetSubclass(ULyraGameData::Get().DynamicTagGameplayEffect);
+		const FGameplayEffectSpecHandle EffectSpec = MakeOutgoingGameplayEffectSpec(Handle, ActorInfo, ActivationInfo, EffectClass, 1.f);
+		if (ensureMsgf(EffectSpec.IsValid(), TEXT("Weapon fire requires the configured dynamic tag gameplay effect")))
+		{
+			EffectSpec.Data->DynamicGrantedTags.AddTag(FGameplayTag::RequestGameplayTag(TEXT("Event.Movement.WeaponFire")));
+			WeaponFireEffectHandle = ApplyGameplayEffectSpecToOwner(Handle, ActorInfo, ActivationInfo, EffectSpec);
+		}
+	}
+}
+
 void ULyraGameplayAbility_RangedWeapon::ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData)
 {
 	// Bind target data callback
@@ -489,6 +516,11 @@ void ULyraGameplayAbility_RangedWeapon::EndAbility(const FGameplayAbilitySpecHan
 		// When ability ends, consume target data and remove delegate
 		MyAbilityComponent->AbilityTargetDataSetDelegate(CurrentSpecHandle, CurrentActivationInfo.GetActivationPredictionKey()).Remove(OnTargetDataReadyCallbackDelegateHandle);
 		MyAbilityComponent->ConsumeClientReplicatedTargetData(CurrentSpecHandle, CurrentActivationInfo.GetActivationPredictionKey());
+		if (WeaponFireEffectHandle.IsValid())
+		{
+			MyAbilityComponent->RemoveActiveGameplayEffect(WeaponFireEffectHandle);
+			WeaponFireEffectHandle.Invalidate();
+		}
 
 		Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 	}

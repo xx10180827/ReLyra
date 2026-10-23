@@ -67,6 +67,7 @@ protected:
 	virtual bool NativeOnHandleBackAction() override;
 
 private:
+	friend class FLyraInventoryUIConsumedSlotReuse;
 	void UnbindInventory();
 	void InvalidateInventory();
 	void RefreshInventory();

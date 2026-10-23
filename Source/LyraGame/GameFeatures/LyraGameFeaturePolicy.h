@@ -61,3 +61,17 @@ public:
 	virtual void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL) override;
 	virtual void OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL) override;
 };
+
+// Cooked maps import this subobject as an archetype, but runtime GC can collect
+// it before map travel. Keep it alive while ShooterCore is mounted.
+UCLASS()
+class ULyraGameFeature_RetainTeleportArchetype : public UObject, public IGameFeatureStateChangeObserver
+{
+	GENERATED_BODY()
+public:
+	virtual void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL) override;
+	virtual void OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL) override;
+private:
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> TeleportCurveArchetype;
+};

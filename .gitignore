@@ -76,6 +76,7 @@ Desktop.ini
 
 # Local assistant scratch files
 /work/
+/package/
 
 # Keep Source/, Config/, Content/, *.uproject and *.uplugin under version control.
 # Keep required Build resources and source art; do not exclude assets by size alone.

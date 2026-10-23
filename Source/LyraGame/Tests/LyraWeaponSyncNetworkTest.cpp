@@ -33,6 +33,7 @@ bool ULyraInventoryNetworkTest::TickWeaponSync()
 	if (!Reload.IsValid() || !Fire.IsValid()) { return false; }
 	const auto Next = [&] { ++WeaponSyncStep; WeaponSyncPhase = 0; WeaponSyncAt = Now; };
 	const auto AmmoIs = [&](int32 Mag, int32 Reserve) { return Weapon->GetCurrentAmmo() == Mag && Weapon->GetCurrentReserveAmmo() == Reserve; };
+	const FGameplayTag FireTag = FGameplayTag::RequestGameplayTag(TEXT("Event.Movement.WeaponFire"));
 	// Exhaust the real rifle, and later the real shotgun: each activation is one cartridge,
 	// independent of the shotgun's pellet count. Wait for authoritative replicated values.
 	if (WeaponSyncStep == 0 || WeaponSyncStep == 7 || WeaponSyncStep == 9)
@@ -43,6 +44,7 @@ bool ULyraInventoryNetworkTest::TickWeaponSync()
 		{
 			if (Now - WeaponSyncAt < 0.8) { return false; }
 			if (!AmmoIs(Count - WeaponSyncShots, Reserve)) { if (Now - WeaponSyncAt < 4) { return false; } return Fail(TEXT("shot consumption not exactly one")); }
+			if (ASC->HasMatchingGameplayTag(FireTag)) { if (Now - WeaponSyncAt < 4) { return false; } return Fail(TEXT("firing tag remained after shot settled")); }
 			WeaponSyncPhase = 0;
 		}
 		if (WeaponSyncShots == Count)
@@ -52,6 +54,7 @@ bool ULyraInventoryNetworkTest::TickWeaponSync()
 			WeaponSyncShots = 0; Next(); return false;
 		}
 		if (!ASC->TryActivateAbility(Fire)) { if (Now - WeaponSyncAt < 4) { return false; } return Fail(TEXT("loaded weapon cannot fire")); }
+		if (ASC->FindAbilitySpecFromHandle(Fire)->IsActive() && !ASC->HasMatchingGameplayTag(FireTag)) { return Fail(TEXT("active fire missing movement tag")); }
 		++WeaponSyncShots; WeaponSyncPhase = 1; WeaponSyncAt = Now; return false;
 	}
 	// Switch to shotgun, cancel its reload by switching away, then return to it.
@@ -96,6 +99,6 @@ bool ULyraInventoryNetworkTest::TickWeaponSync()
 	}
 	if (!bObservedRemoteReload) { return Fail(TEXT("observer never saw replicated reload montage")); }
 	bWeaponSyncVerified = true;
-	UE_LOG(LogTemp, Display, TEXT("WEAPON_SYNC PASS role=%s rifle=0/0 shotgun=0/0 shots=30 switchCancel=preserved remoteReload=seen authority=passed"), *ExpectedRole);
+	UE_LOG(LogTemp, Display, TEXT("WEAPON_SYNC PASS role=%s rifle=0/0 shotgun=0/0 shots=30 switchCancel=preserved remoteReload=seen authority=passed fireTagCleanup=passed"), *ExpectedRole);
 	return true;
 }

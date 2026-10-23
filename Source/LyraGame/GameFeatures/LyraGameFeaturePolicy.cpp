@@ -19,6 +19,7 @@ ULyraGameFeaturePolicy& ULyraGameFeaturePolicy::Get()
 void ULyraGameFeaturePolicy::InitGameFeatureManager()
 {
 	Observers.Add(NewObject<ULyraGameFeature_HotfixManager>());
+	Observers.Add(NewObject<ULyraGameFeature_RetainTeleportArchetype>());
 	Observers.Add(NewObject<ULyraGameFeature_AddGameplayCuePaths>());
 
 	UGameFeaturesSubsystem& Subsystem = UGameFeaturesSubsystem::Get();
@@ -75,6 +76,24 @@ void ULyraGameFeature_HotfixManager::OnGameFeatureLoading(const UGameFeatureData
 	{
 		HotfixManager->RequestPatchAssetsFromIniFiles();
 	}
+}
+
+void ULyraGameFeature_RetainTeleportArchetype::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
+{
+	if (!GIsEditor && PluginName == TEXT("ShooterCore"))
+	{
+		// Loading the class creates its exported template before the first world GC.
+		// Do not rewrite the source blueprint or the maps that import this archetype.
+		LoadClass<UObject>(nullptr, TEXT("/ShooterCore/Blueprint/B_Teleport.B_Teleport_C"));
+		TeleportCurveArchetype = FindObject<UObject>(nullptr,
+			TEXT("/ShooterCore/Blueprint/B_Teleport.B_Teleport_C:Niagara_GEN_VARIABLE.NiagaraDataInterfaceCurve_0"));
+		ensureMsgf(TeleportCurveArchetype, TEXT("ShooterCore teleport curve archetype is missing"));
+	}
+}
+
+void ULyraGameFeature_RetainTeleportArchetype::OnGameFeatureUnregistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
+{
+	if (PluginName == TEXT("ShooterCore")) { TeleportCurveArchetype = nullptr; }
 }
 
 //////////////////////////////////////////////////////////////////////

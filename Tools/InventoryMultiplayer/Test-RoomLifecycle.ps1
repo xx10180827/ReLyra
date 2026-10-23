@@ -1,8 +1,8 @@
-param([string]$EngineRoot, [int]$Port = 17777, [int]$TimeoutSeconds = 2200, [switch]$Crash)
+param([string]$EngineRoot, [string]$GameExecutable, [ValidateRange(0,500)][int]$PacketLag=0, [ValidateRange(0,5)][int]$PacketLoss=0, [int]$Port = 17777, [int]$TimeoutSeconds = 2200, [switch]$Crash)
 $ErrorActionPreference = 'Stop'
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-if (-not $EngineRoot) { $EngineRoot = (Get-ItemProperty 'HKLM:\SOFTWARE\EpicGames\Unreal Engine\5.4').InstalledDirectory }
-$exe = Join-Path $EngineRoot 'Engine/Binaries/Win64/UnrealEditor.exe'
+if (-not $EngineRoot -and -not $GameExecutable) { $EngineRoot = (Get-ItemProperty 'HKLM:\SOFTWARE\EpicGames\Unreal Engine\5.4').InstalledDirectory }
+$exe = if ($GameExecutable) { (Resolve-Path -LiteralPath $GameExecutable).Path } else { Join-Path $EngineRoot 'Engine/Binaries/Win64/UnrealEditor.exe' }
 if (Get-NetUDPEndpoint -LocalPort $Port -ErrorAction SilentlyContinue) { throw "UDP $Port is already in use." }
 $runDirectory = Join-Path $projectRoot ('Saved/InventoryMultiplayer/RoomLifecycle/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
@@ -16,6 +16,8 @@ function Start-Peer([string]$role) {
         ('-RoomTestDir="' + $runDirectory + '"'), ('-abslog="' + (Join-Path $runDirectory "$role.log") + '"'),
         '-ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null',
         '-ExecCmds="t.MaxFPS 30,sg.ViewDistanceQuality 1,sg.ShadowQuality 1,sg.PostProcessQuality 1,sg.EffectsQuality 1"')
+    if ($GameExecutable) { $arguments = @($arguments | Select-Object -Skip 1) }
+    $arguments += @("-PktLag=$PacketLag", "-PktLoss=$PacketLoss")
     if ($role -eq 'Host') { $arguments += @('-RoomTestHost','-WinX=0') }
     elseif ($role -eq 'Intruder') { $arguments += @('-RoomTestIntruder','-WinX=100','-NullRHI','-nosound') }
     else { $arguments += '-WinX=970' }
@@ -47,7 +49,7 @@ try {
         if (@($records | Where-Object { Select-String -LiteralPath (Join-Path $runDirectory ($_.role + '.log')) -Pattern 'ROOM_LIFE FAIL' -Quiet -ErrorAction SilentlyContinue }).Count -gt 0) { break }
         Start-Sleep -Milliseconds 500
     }
-    $result = [ordered]@{ passed=$true; crashScenario=[bool]$Crash; directory=$runDirectory; userAccepted=$false; peers=@() }
+    $result = [ordered]@{ executable=$exe; packagedGame=[bool]$GameExecutable; packetLagMs=$PacketLag; packetLossPercent=$PacketLoss; passed=$true; crashScenario=[bool]$Crash; directory=$runDirectory; userAccepted=$false; peers=@() }
     foreach ($record in $records) {
         $role = $record.role
         # A failed peer can finish before the others; read their still-open logs with sharing.
@@ -76,7 +78,9 @@ try {
         })
         $pass = ($code -eq 0 -or ($record.intentionallyStopped -and $record.process.HasExited)) -and @($checks | Where-Object { -not $_.passed }).Count -eq 0 -and $unexpected.Count -eq 0
         $result.peers += [ordered]@{ role=$role; exitCode=$code; intentionallyStopped=$record.intentionallyStopped; passed=$pass; maps=$checks; expectedNetworkErrors=$expectedErrors; unexpectedErrors=$unexpected }
-        $result.passed = $result.passed -and $pass
+        $simulationVerified = ($PacketLag -eq 0 -and $PacketLoss -eq 0) -or ($log.Contains("PktLag set to $PacketLag") -and $log.Contains("PktLoss set to $PacketLoss"))
+        $result.peers[-1].networkSimulationVerified = $simulationVerified
+        $result.passed = $result.passed -and $pass -and $simulationVerified
     }
     if ($Crash) { $result.passed = $result.passed -and $records.Count -eq 4 -and $records[0].intentionallyStopped -and $records[1].intentionallyStopped }
     else { $result.passed = $result.passed -and $records.Count -eq 3 }
