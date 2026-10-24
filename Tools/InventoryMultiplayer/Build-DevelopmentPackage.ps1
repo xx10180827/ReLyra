@@ -25,7 +25,7 @@ $buildExit = $LASTEXITCODE
     ConvertTo-Json | Set-Content (Join-Path $reportDirectory 'Result.json') -Encoding utf8
 if ($buildExit -ne 0) { throw "BuildCookRun failed ($buildExit). See $reportDirectory" }
 $windowsDirectory = Join-Path $archiveDirectory 'Windows'
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Package/Start-LAN.cmd'),(Join-Path $PSScriptRoot 'Package/README-LAN.md') -Destination $windowsDirectory
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Package/Start-LAN.cmd'),(Join-Path $PSScriptRoot 'Package/Start-LAN-Diagnostics.cmd'),(Join-Path $PSScriptRoot 'Package/README-LAN.md'),(Join-Path $PSScriptRoot 'Package/Start-LAN-Hotspot-98.cmd'),(Join-Path $PSScriptRoot 'Package/Start-LAN-Hotspot-239.cmd'),(Join-Path $PSScriptRoot 'Package/README-Hotspot.md') -Destination $windowsDirectory
 [ordered]@{buildId=$runId;sourceBaseCommit=$baseCommit;includesUncommittedChanges=($workspaceStatus.Count -gt 0);
     runtimeVerification='Pending';userAccepted=$false;reportDirectory=$reportDirectory} |
     ConvertTo-Json | Set-Content (Join-Path $windowsDirectory 'BuildInfo.json') -Encoding utf8

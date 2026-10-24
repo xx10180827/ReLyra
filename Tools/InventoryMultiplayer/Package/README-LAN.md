@@ -1,6 +1,10 @@
 # 双人 LAN 测试包
 
-将整个 `Windows` 文件夹复制到第二台 Windows 电脑，双方使用同一份包。不要只复制 exe；不需要安装 UE 编辑器。`Start-LAN.cmd` 应与 Windows 根目录的 `LyraGame.exe` 放在一起，双击启动。
+将整个 `Windows` 文件夹复制到第二台 Windows 电脑，双方使用同一份包。不要只复制 exe；不需要安装 UE 编辑器。`Start-LAN.cmd` 应与 Windows 根目录的 `LyraGame.exe` 放在一起，双击 .cmd 启动。
+
+启动入口直接运行游戏，不依赖 PowerShell 或网卡管理命令，也不固定绑定某个 IP。请先连接好要测试的网络，再启动双方游戏；切换 Wi-Fi／热点后退出游戏并重新启动。不会修改网卡、系统路由或防火墙。
+
+搜索问题尚待双机定位时，双方退出游戏后改用 `Start-LAN-Diagnostics.cmd` 启动，房主从新增双人 LAN 入口创建房间，另一台搜索一次。记下搜索时间并保存双方 `Lyra/Saved/Logs`，其中包含引擎的广播发送／接收及网卡信息。该入口只增加日志，不代表已修复热点搜索；正常游玩使用 `Start-LAN.cmd`。
 
 首次启动若提示运行库缺失，运行 `Engine/Extras/Redist/en-us/UEPrereqSetup_x64.exe`。双方连到同一个局域网；Windows 防火墙若询问，允许此游戏通过当前可信的专用网络。测试工具不会替你修改防火墙。
 
@@ -43,3 +47,7 @@
 修复前曾有射击图 Niagara 模板丢失（PACK-003）和延迟网络下开火标签移除错误（GAS-001），历史失败记录保留在项目《背包与双人联机任务文档.md》第 5.18 节。修复包的具体复测结论见该文档后续记录及 `BuildInfo.json` 指向的报告。
 
 Development 包仍有 `L_FiringRange_WP` 主资产 ID 等黄色 Warning 提示。遇到新的红色错误、崩溃或玩法异常，请按上述方式保存双方日志，不以本机自动测试代替实际体验验收。
+
+## 已验收的多网卡热点入口
+
+2026-10-24 用户确认，两台电脑保留 VMware 启用时，使用 Start-LAN-Hotspot-98.cmd／Start-LAN-Hotspot-239.cmd 已可相互搜索到房间。这两个入口仅适用各自本机 IPv4 为 192.168.132.98／192.168.132.239 的情况；网络或 DHCP 地址变化需要更新，不能自动适配其他地址。详见 README-Hotspot.md。普通 Start-LAN.cmd 仍保留默认行为。

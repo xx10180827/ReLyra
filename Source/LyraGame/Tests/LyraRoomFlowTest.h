@@ -16,6 +16,7 @@ private:
  bool HasSignal(const FString& Name) const;
  void Advance(int32 Next);
  bool OpenMenuFromFrontend();
+ void TickLegacyDirectJoin(double Now);
  TWeakObjectPtr<APawn> HostPawn;
  TWeakObjectPtr<APawn> ClientPawn;
  double MenuSeen = 0;
@@ -23,6 +24,7 @@ private:
  bool bMenuScreenshot = false;
  bool bRecoveryReopened = false;
  bool bHost = false;
+ bool bLegacyDirect = false;
  int32 Step = 0;
  int32 Searches = 0;
  int32 Port = 17777;

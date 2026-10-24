@@ -227,7 +227,13 @@ void ULyraRoomSubsystem::Tick(float DeltaTime)
   return;
  }
  if (State == EState::Leaving && !HasSession()) { SetState(EState::Idle, LOCTEXT("Left", "已离开房间，可以重新建房或加入。")); }
- if ((State == EState::Hosting || State == EState::Joining) && IsInRoom() && Controller() && Controller()->GetPawn())
+ // A replicated local PlayerState in a gameplay world establishes a client join.
+ // Original Lyra hosts do not set bIsLanRoom, and spectators may never own a pawn.
+ // Keep IsInRoom separate: it enables our two-player rules, not transport readiness.
+ const bool bJoinedGame = State == EState::Joining && GetWorld()->GetNetMode() == NM_Client
+  && !GetWorld()->GetOutermost()->GetName().Contains(TEXT("L_LyraFrontEnd")) && GetWorld()->GetGameState()
+  && Controller() && Controller()->PlayerState;
+ if (bJoinedGame || (State == EState::Hosting && IsInRoom() && Controller() && Controller()->PlayerState))
  { SetState(EState::Connected, LOCTEXT("Connected", "已连接。按 F10 打开房间菜单；I 打开背包。")); }
  if (IsBusy() && FPlatformTime::Seconds() - OperationStarted > 90.0)
  { Failed(LOCTEXT("Timeout", "操作超时。请检查地址、房主状态和局域网连接后重试。")); }

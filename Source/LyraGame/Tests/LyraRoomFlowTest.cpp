@@ -23,6 +23,7 @@
 #include "Layout/WidgetPath.h"
 #include "Widgets/SWidget.h"
 #include "GameFramework/Pawn.h"
+#include "CommonSessionSubsystem.h"
 
 namespace RoomFlowAutomation
 {
@@ -98,6 +99,7 @@ void ULyraRoomFlowTest::Advance(int32 Next)
 void ULyraRoomFlowTest::OnInit()
 {
  bHost = FParse::Param(FCommandLine::Get(), TEXT("RoomTestHost"));
+ bLegacyDirect = FParse::Param(FCommandLine::Get(), TEXT("RoomTestLegacyDirect"));
  FParse::Value(FCommandLine::Get(), TEXT("RoomTestDir="), Directory);
  FParse::Value(FCommandLine::Get(), TEXT("port="), Port);
  Started = Changed = FPlatformTime::Seconds();
@@ -110,6 +112,7 @@ void ULyraRoomFlowTest::OnTick(float DeltaTime)
  if (!GetWorld() || !GetWorld()->GetGameInstance()) { return; }
  auto* PC = Cast<ALyraPlayerController>(GetWorld()->GetFirstPlayerController());
  if (!PC) { return; }
+ if (bLegacyDirect) { TickLegacyDirectJoin(Now); return; }
  auto* Rooms = GetWorld()->GetGameInstance()->GetSubsystem<ULyraRoomSubsystem>();
  auto* Screen = PC->GetRoomScreen();
  // Frontend recovery must use the visible menu entry, never the controller shortcut.
@@ -268,5 +271,54 @@ void ULyraRoomFlowTest::OnTick(float DeltaTime)
   }
   else if (Step == 13 && Rooms->IsReady())
   { Signal(TEXT("DisconnectHandled")); UE_LOG(LogTemp, Display, TEXT("ROOM_TEST PASS role=Client invalidAddress=passed timeoutRetry=passed searchJoin=passed directJoin=passed teams=passed disconnect=passed")); EndTest(0); }
+ }
+}
+
+void ULyraRoomFlowTest::TickLegacyDirectJoin(double Now)
+{
+ auto* PC = GetWorld()->GetFirstPlayerController();
+ auto* Rooms = GetWorld()->GetGameInstance()->GetSubsystem<ULyraRoomSubsystem>();
+ if (bHost)
+ {
+  if (Step == 0 && Rooms->IsReady())
+  {
+   // Same CommonSession hosting path as the original menu; deliberately omit LyraLanRoom.
+   auto* Sessions = GetWorld()->GetGameInstance()->GetSubsystem<UCommonSessionSubsystem>();
+   auto* Request = Sessions->CreateOnlineHostSessionRequest();
+   Request->OnlineMode = ECommonSessionOnlineMode::LAN; Request->bUseLobbies = false;
+   Request->MapID = FPrimaryAssetId(TEXT("Map"), TEXT("/ShooterMaps/Maps/L_Expanse"));
+   Request->MaxPlayerCount = 8;
+   Request->ExtraArgs.Add(TEXT("Experience"), TEXT("B_ShooterGame_Elimination"));
+   Sessions->HostSession(PC, Request); Advance(1);
+  }
+  else if (Step == 1 && GetWorld()->GetNetMode() == NM_ListenServer && PC->GetPawn())
+  {
+   if (Rooms->IsInRoom()) { EndTest(1); return; }
+   Signal(TEXT("LegacyHostReady")); Advance(2);
+  }
+  else if (Step == 2 && HasSignal(TEXT("LegacyClientPassed")))
+  { UE_LOG(LogTemp, Display, TEXT("ROOM_TEST LEGACY_PASS role=Host")); EndTest(0); }
+ }
+ else
+ {
+  if (Step == 0 && Rooms->IsReady() && HasSignal(TEXT("LegacyHostReady")))
+  { Rooms->DirectJoin(FString::Printf(TEXT("127.0.0.1:%d"), Port)); Advance(1); }
+  else if (Step == 1 && GetWorld()->GetNetMode() == NM_Client && PC->PlayerState
+   && GetWorld()->GetOutermost()->GetName().Contains(TEXT("L_Expanse")) && GetWorld()->GetGameState() && !Rooms->IsBusy())
+  {
+   if (Rooms->IsInRoom()) { EndTest(1); return; }
+   Advance(2);
+  }
+  else if (Step == 2)
+  {
+   if (GetWorld()->GetNetMode() != NM_Client || !PC->PlayerState || Rooms->IsInRoom())
+   { UE_LOG(LogTemp, Error, TEXT("ROOM_TEST legacy direct join disconnected during 100-second hold")); EndTest(1); return; }
+   if (Now - Changed > 100)
+   {
+    if (Rooms->IsBusy()) { EndTest(1); return; }
+    Signal(TEXT("LegacyClientPassed"));
+    UE_LOG(LogTemp, Display, TEXT("ROOM_TEST LEGACY_PASS role=Client heldSeconds=100 legacyRulesUnchanged=1")); EndTest(0);
+   }
+  }
  }
 }
