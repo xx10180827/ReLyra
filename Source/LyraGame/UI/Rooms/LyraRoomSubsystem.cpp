@@ -7,6 +7,9 @@
 #include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
+#include "Engine/NetDriver.h"
+#include "IPAddress.h"
+#include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/GameStateBase.h"
 #include "Kismet/GameplayStatics.h"
@@ -38,7 +41,7 @@ void ULyraRoomSubsystem::Deinitialize()
   Sessions->OnPreClientTravelEvent.Remove(PreTravelHandle);
  }
  if (GEngine) { GEngine->OnNetworkFailure().Remove(NetworkHandle); GEngine->OnTravelFailure().Remove(TravelHandle); }
- if (SearchRequest) { SearchRequest->OnSearchFinished.RemoveAll(this); }
+ Discovery.Stop();
  Super::Deinitialize();
 }
 bool ULyraRoomSubsystem::IsInRoom() const
@@ -88,7 +91,8 @@ void ULyraRoomSubsystem::Host()
  if (!IsReady()) { return; }
  const auto* Map = LyraRoomMaps::Find(SelectedMap);
  if (!Map) { return; }
- bRoomFlow = true; Results.Reset();
+ bRoomFlow = true; Results.Reset(); ++ResultsRevision;
+ Discovery.Stop(); bDiscoveryHostAttempted = false;
  auto* Sessions = GetGameInstance()->GetSubsystem<UCommonSessionSubsystem>();
  auto* Request = Sessions->CreateOnlineHostSessionRequest();
  Request->OnlineMode = ECommonSessionOnlineMode::LAN; Request->bUseLobbies = false;
@@ -104,32 +108,17 @@ void ULyraRoomSubsystem::Host()
 void ULyraRoomSubsystem::Search()
 {
  if (!IsReady()) { return; }
- bRoomFlow = true; Results.Reset();
- if (SearchRequest) { SearchRequest->OnSearchFinished.RemoveAll(this); }
- auto* Sessions = GetGameInstance()->GetSubsystem<UCommonSessionSubsystem>();
- SearchRequest = Sessions->CreateOnlineSearchSessionRequest();
- SearchRequest->OnlineMode = ECommonSessionOnlineMode::LAN; SearchRequest->bUseLobbies = false;
- SearchRequest->OnSearchFinished.AddWeakLambda(this, [this](bool bOK, const FText& Error)
- {
-  if (State != EState::Searching) { return; }
-  if (!bOK) { Failed(LOCTEXT("SearchFailed", "搜索失败，请稍后重试，或使用 IP 直连。")); return; }
-  for (const auto& Result : SearchRequest->Results)
-  {
-   FString Mode; bool bFound = false; Result->GetStringSetting(TEXT("GAMEMODE"), Mode, bFound);
-   if (bFound && Mode == TEXT("LyraInventoryRoom")) { Results.Add(Result); }
-  }
-  SetState(EState::Idle, Results.IsEmpty() ? LOCTEXT("NoRooms", "未找到房间。确认双方在同一局域网，可刷新或使用 IP 直连。") : LOCTEXT("Found", "选择一个房间加入。"));
- });
+ bRoomFlow = true; Results.Reset(); ++ResultsRevision;
  SetState(EState::Searching, LOCTEXT("Searching", "正在搜索局域网房间……"));
- Sessions->FindSessions(Controller(), SearchRequest);
+ if (!Discovery.StartSearch())
+ { SetState(EState::Idle, LOCTEXT("SearchNoInterface", "无法启动搜索，请确认局域网连接后重试，或使用 IP 直连。")); }
 }
 void ULyraRoomSubsystem::Join(int32 Index)
 {
  if (!IsReady() || !Results.IsValidIndex(Index)) { return; }
- if (Results[Index]->GetNumOpenPublicConnections() <= 0) { Status = LOCTEXT("Full", "房间已满，请刷新列表。"); return; }
- bRoomFlow = true;
- SetState(EState::Joining, LOCTEXT("Joining", "正在加入房间……"));
- GetGameInstance()->GetSubsystem<UCommonSessionSubsystem>()->JoinSession(Controller(), Results[Index]);
+ if (Results[Index].Players >= 2) { Status = LOCTEXT("Full", "房间已满，请刷新列表。"); return; }
+ const FString Address = Results[Index].Address;
+ DirectJoin(Address);
 }
 void ULyraRoomSubsystem::DirectJoin(const FString& Address)
 {
@@ -137,6 +126,7 @@ void ULyraRoomSubsystem::DirectJoin(const FString& Address)
  FString Normalized;
  if (!NormalizeAddress(Address, Normalized)) { Status = LOCTEXT("BadAddress", "请输入有效 IPv4 地址，可附端口，例如 192.168.1.10:7777。"); return; }
  bRoomFlow = true;
+ Discovery.Stop(); Results.Reset(); ++ResultsRevision;
  SetState(EState::Joining, LOCTEXT("Connecting", "正在连接房主；连接失败后可重试……"));
  FString URL = Normalized; PreTravel(URL);
  Controller()->ClientTravel(URL, TRAVEL_Absolute);
@@ -155,7 +145,7 @@ void ULyraRoomSubsystem::Joined(const FOnlineResultInformation& Result)
 }
 void ULyraRoomSubsystem::Failed(const FText& Message)
 {
- Results.Reset();
+ Discovery.Stop(); Results.Reset(); ++ResultsRevision;
  GetGameInstance()->GetSubsystem<UCommonSessionSubsystem>()->CleanUpSessions();
  SetState(EState::Failed, Message);
  bReturnToMenu = true;
@@ -163,7 +153,7 @@ void ULyraRoomSubsystem::Failed(const FText& Message)
 void ULyraRoomSubsystem::Leave()
 {
  if (State == EState::Leaving) { return; }
- Results.Reset();
+ Discovery.Stop(); Results.Reset(); ++ResultsRevision;
  bRoomFlow = true;
  GetGameInstance()->GetSubsystem<UCommonSessionSubsystem>()->CleanUpSessions();
  SetState(EState::Leaving, LOCTEXT("Leaving", "正在离开并清理房间……"));
@@ -206,14 +196,22 @@ FText ULyraRoomSubsystem::GetMapLabel() const
 }
 FText ULyraRoomSubsystem::GetResultMapLabel(int32 Index) const
 {
- FString Package; bool bFound = false;
- if (Results.IsValidIndex(Index)) { Results[Index]->GetStringSetting(TEXT("MAPNAME"), Package, bFound); }
- const auto* Map = bFound ? LyraRoomMaps::FindPackage(Package) : nullptr;
- return Map ? Map->Label : LOCTEXT("UnknownMap", "未知地图");
+ return Results.IsValidIndex(Index) && LyraRoomMaps::All().IsValidIndex(Results[Index].MapIndex)
+  ? LyraRoomMaps::All()[Results[Index].MapIndex].Label : LOCTEXT("UnknownMap", "未知地图");
 }
 void ULyraRoomSubsystem::Tick(float DeltaTime)
 {
  if (!GetWorld() || !GetWorld()->IsGameWorld()) { return; }
+ if (State == EState::Searching)
+ {
+  Discovery.TickSearch(Results);
+  if (FPlatformTime::Seconds() - OperationStarted >= LyraRoomDiscovery::SearchSeconds)
+  {
+   Discovery.Stop(); ++ResultsRevision;
+   UE_LOG(LogTemp, Display, TEXT("ROOM_DISCOVERY search complete rooms=%d"), Results.Num());
+   SetState(EState::Idle, Results.IsEmpty() ? LOCTEXT("NoRooms", "未找到房间。确认双方在同一局域网，可刷新或使用 IP 直连。") : LOCTEXT("Found", "选择一个房间加入。"));
+  }
+ }
  // Synchronous map loading can exceed the connection timeout on a cold cache.
  // A new target world is real progress; give its experience activation a fresh deadline once.
  if ((State == EState::Hosting || State == EState::Joining) && OperationWorld.Get() != GetWorld()
@@ -235,6 +233,22 @@ void ULyraRoomSubsystem::Tick(float DeltaTime)
   && Controller() && Controller()->PlayerState;
  if (bJoinedGame || (State == EState::Hosting && IsInRoom() && Controller() && Controller()->PlayerState))
  { SetState(EState::Connected, LOCTEXT("Connected", "已连接。按 F10 打开房间菜单；I 打开背包。")); }
+ const bool bAdvertise = State == EState::Connected && IsInRoom() && GetWorld()->GetNetMode() == NM_ListenServer;
+ if (bAdvertise)
+ {
+  if (!bDiscoveryHostAttempted)
+  {
+   bDiscoveryHostAttempted = true;
+   if (!Discovery.StartHost()) { Status = LOCTEXT("AdvertiseFailed", "房间已创建，但搜索广播未能启动；其他玩家可尝试 IP 直连。"); }
+  }
+  auto* Driver = GetWorld()->GetNetDriver();
+  const auto Address = Driver ? Driver->GetLocalAddr() : nullptr;
+  const auto* Map = LyraRoomMaps::FindPackage(GetWorld()->GetOutermost()->GetName());
+  auto* Mode = GetWorld()->GetAuthGameMode();
+  if (Address && Map && Mode)
+  { Discovery.TickHost(uint16(Address->GetPort()), uint8(Map - LyraRoomMaps::All().GetData()), uint8(FMath::Clamp(Mode->GetNumPlayers(), 0, 2))); }
+ }
+ else if (Discovery.IsHosting()) { Discovery.Stop(); bDiscoveryHostAttempted = false; }
  if (IsBusy() && FPlatformTime::Seconds() - OperationStarted > 90.0)
  { Failed(LOCTEXT("Timeout", "操作超时。请检查地址、房主状态和局域网连接后重试。")); }
 }

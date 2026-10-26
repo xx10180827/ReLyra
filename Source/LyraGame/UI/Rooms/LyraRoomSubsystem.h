@@ -3,6 +3,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Tickable.h"
 #include "Engine/EngineBaseTypes.h"
+#include "LyraRoomDiscovery.h"
 #include "LyraRoomSubsystem.generated.h"
 
 class UCommonSession_SearchSessionRequest;
@@ -38,7 +39,8 @@ public:
  void FrontendReady(UWorld* World) { ReadyFrontendWorld = World; }
  int32 GetSelectedTeam() const { return SelectedTeam; }
  FText GetStatus() const { return Status; }
- const TArray<TObjectPtr<UCommonSession_SearchResult>>& GetResults() const { return Results; }
+ const TArray<FLyraDiscoveredRoom>& GetResults() const { return Results; }
+ uint32 GetResultsRevision() const { return ResultsRevision; }
  static bool NormalizeAddress(const FString& Input, FString& Output);
  static const TCHAR* FrontendMap();
 private:
@@ -62,6 +64,8 @@ private:
  TWeakObjectPtr<UWorld> ReadyFrontendWorld;
  TWeakObjectPtr<UWorld> OperationWorld;
  FDelegateHandle CreateHandle, JoinHandle, PreTravelHandle, NetworkHandle, TravelHandle;
- UPROPERTY() TObjectPtr<UCommonSession_SearchSessionRequest> SearchRequest;
- UPROPERTY() TArray<TObjectPtr<UCommonSession_SearchResult>> Results;
+ FLyraRoomDiscovery Discovery;
+ TArray<FLyraDiscoveredRoom> Results;
+ uint32 ResultsRevision = 0;
+ bool bDiscoveryHostAttempted = false;
 };

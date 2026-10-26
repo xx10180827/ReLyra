@@ -66,6 +66,7 @@ public class LyraGame : ModuleRules
 				"CommonUser",
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils",
+				"Sockets",
 				"GameSubtitles",
 				"GameplayMessageRuntime",
 				"AudioMixer",
@@ -86,6 +87,11 @@ public class LyraGame : ModuleRules
 		// Generate compile errors if using DrawDebug functions in test/shipping builds.
 		PublicDefinitions.Add("SHIPPING_DRAW_DEBUG_ERROR=1");
 		
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicSystemLibraries.Add("iphlpapi.lib");
+		}
 
 		SetupGameplayDebuggerSupport(Target);
 		SetupIrisSupport(Target);

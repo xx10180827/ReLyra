@@ -107,16 +107,16 @@ FText ULyraRoomScreen::Roster() const
 void ULyraRoomScreen::NativeTick(const FGeometry& G, float D)
 {
  Super::NativeTick(G,D);
- const int32 Count = Rooms()->IsInRoom() ? 0 : Rooms()->GetResults().Num();
- if (!List || DisplayedResults == Count) { return; }
- List->ClearChildren(); DisplayedResults = Count;
+ const int32 Count = Rooms()->IsInRoom() || Rooms()->IsBusy() ? 0 : Rooms()->GetResults().Num();
+ if (!List || (DisplayedResults == Count && DisplayedRevision == Rooms()->GetResultsRevision())) { return; }
+ List->ClearChildren(); DisplayedResults = Count; DisplayedRevision = Rooms()->GetResultsRevision();
  for (int32 I = 0; I < DisplayedResults; ++I)
  {
-  auto* Result = Rooms()->GetResults()[I].Get();
+  const auto& Result = Rooms()->GetResults()[I];
   const FText Label = FText::FromString(FString::Printf(TEXT("%s · 房间 %d  |  %d / %d 人  |  %d ms  |  加入"),
-   *Rooms()->GetResultMapLabel(I).ToString(), I + 1, Result->GetMaxPublicConnections() - Result->GetNumOpenPublicConnections(), Result->GetMaxPublicConnections(), Result->GetPingInMs()));
+   *Rooms()->GetResultMapLabel(I).ToString(), I + 1, int32(Result.Players), 2, Result.PingMs));
   List->AddSlot().AutoHeight().Padding(0,3)[SNew(SButton).ContentPadding(10)
-   .IsEnabled_Lambda([this,I] { return Rooms()->IsReady() && Rooms()->GetResults().IsValidIndex(I) && Rooms()->GetResults()[I]->GetNumOpenPublicConnections() > 0; })
+   .IsEnabled_Lambda([this,I] { return Rooms()->IsReady() && Rooms()->GetResults().IsValidIndex(I) && Rooms()->GetResults()[I].Players < 2; })
    .OnClicked_Lambda([this,I] { JoinRoom(I); return FReply::Handled(); })[SNew(STextBlock).Text(Label).Font(FCoreStyle::GetDefaultFontStyle("Regular", 16))]];
  }
 }

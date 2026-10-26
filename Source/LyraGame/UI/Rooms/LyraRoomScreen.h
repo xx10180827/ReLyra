@@ -32,5 +32,6 @@ private:
  TSharedPtr<SEditableTextBox> AddressBox;
  TArray<TSharedPtr<FString>> MapOptions;
  int32 DisplayedResults = -1;
+ uint32 DisplayedRevision = MAX_uint32;
  bool bConfirmLeave = false;
 };

@@ -6,4 +6,4 @@ if not exist "LyraGame.exe" (
     pause
     exit /b 1
 )
-start "Lyra LAN diagnostics" "%~dp0LyraGame.exe" /Game/System/FrontEnd/Maps/L_LyraFrontEnd -windowed -ResX=1280 -ResY=720 -port=7777 -log -forcelogflush -ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null -LogCmds="LogTemp Verbose,LogOnlineSession Verbose,LogCommonSession Verbose" -ExecCmds="SOCKETSUB GETLOCALHOST,SOCKETSUB GETBINDADDR,SOCKETSUB GETADAPTERS"
+start "Lyra LAN diagnostics" "%~dp0LyraGame.exe" /Game/System/FrontEnd/Maps/L_LyraFrontEnd -windowed -ResX=1280 -ResY=720 -port=7777 -log -forcelogflush -ini:Engine:[OnlineSubsystem]:DefaultPlatformService=Null -LogCmds="LogTemp Verbose,LogOnlineSession Verbose,LogCommonSession Verbose,LogLyraRoomDiscovery Verbose" -ExecCmds="SOCKETSUB GETLOCALHOST,SOCKETSUB GETBINDADDR,SOCKETSUB GETADAPTERS"

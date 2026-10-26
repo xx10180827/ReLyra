@@ -231,7 +231,19 @@ void ULyraRoomLifecycleTest::OnTick(float DeltaTime)
  {
   if (Rooms->IsInRoom()) { Fail(TEXT("third player admitted")); return; }
   if (Step == 0 && Rooms->IsReady() && Has(TEXT("FullReady")))
-  { UE_LOG(LogTemp, Display, TEXT("ROOM_LIFE EXPECT_FAILURE BEGIN")); Rooms->DirectJoin(FString::Printf(TEXT("127.0.0.1:%d"), Port)); Advance(1); }
+  { Rooms->Search(); Advance(10); }
+  else if (Step == 10 && Rooms->IsReady())
+  {
+   if (Rooms->GetResults().Num() != 1 || Rooms->GetResults()[0].Players != 2)
+   { Fail(TEXT("full room missing or discovery occupancy incorrect")); return; }
+   const FString Address = Rooms->GetResults()[0].Address;
+   Rooms->Join(0);
+   if (Rooms->IsBusy() || !Rooms->GetStatus().ToString().Contains(TEXT("房间已满")))
+   { Fail(TEXT("full room list join was not blocked")); return; }
+   UE_LOG(LogTemp, Display, TEXT("ROOM_LIFE full discovery and list rejection passed address=%s"), *Address);
+   // Bypass the list deliberately: server admission must still reject the third player.
+   UE_LOG(LogTemp, Display, TEXT("ROOM_LIFE EXPECT_FAILURE BEGIN")); Rooms->DirectJoin(Address); Advance(1);
+  }
   else if (Step == 1 && Rooms->IsReady())
   {
    if (!Rooms->GetStatus().ToString().Contains(TEXT("房间已满"))) { Fail(TEXT("third player missing full feedback")); return; }
